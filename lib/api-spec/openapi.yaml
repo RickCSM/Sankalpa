@@ -1,0 +1,2379 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Sankalpa Odisha API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: master-data
+    description: Departments, categories, tags
+  - name: uoi-notes
+    description: UOI Notes management
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check (server liveness)
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /health:
+    get:
+      operationId: deepHealthCheck
+      tags: [health]
+      summary: Deep health check (DB ping)
+      responses:
+        "200": { description: Healthy, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }
+        "503": { description: Unhealthy, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RequestUploadUrlBody" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/RequestUploadUrlResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/attachments:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Announcements]
+      operationId: listAnnouncementAttachments
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AttachmentListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      tags: [Announcements]
+      operationId: registerAnnouncementAttachment
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RegisterAttachmentRequest" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/AttachmentResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+  /attachments/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    delete:
+      tags: [Announcements]
+      operationId: deleteAttachment
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+  /storage/uoi-notes/uploads/request-url:
+    post:
+      operationId: requestUoiNoteUploadUrl
+      tags: [storage]
+      summary: Request an upload URL for a UOI note attachment
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RequestUoiNoteUploadUrlBody" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/RequestUploadUrlResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+  /uoi-notes/{id}/attachments:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [UoiNotes]
+      operationId: listUoiNoteAttachments
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UoiNoteAttachmentListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      tags: [UoiNotes]
+      operationId: registerUoiNoteAttachment
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RegisterAttachmentRequest" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/UoiNoteAttachmentResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /uoi-note-attachments/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    delete:
+      tags: [UoiNotes]
+      operationId: deleteUoiNoteAttachment
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+  /audit-log:
+    get:
+      tags: [admin]
+      operationId: listAuditLog
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: pageSize
+          schema: { type: integer }
+        - in: query
+          name: actorId
+          schema: { type: integer }
+        - in: query
+          name: actorRole
+          schema: { type: string }
+          description: Filter by the actor's role at the time of the action (e.g. admin, cmo_nodal, anonymous).
+        - in: query
+          name: action
+          schema: { type: string }
+        - in: query
+          name: targetTable
+          schema: { type: string }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: sortBy
+          schema: { type: string }
+          description: Column key to sort by (createdAt, actorName, actorRole, action, targetTable, route, id)
+        - in: query
+          name: sortDir
+          schema: { type: string, enum: [asc, desc] }
+          description: Sort direction
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AuditLogListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /auth/change-password:
+    post:
+      tags: [auth]
+      operationId: changePassword
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ChangePasswordRequest" } } }
+      responses:
+        "204": { description: Changed }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Sign out
+      responses:
+        "204":
+          description: Logged out
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the currently authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /auth/profile-photo/upload-url:
+    post:
+      operationId: requestProfilePhotoUploadUrl
+      tags: [auth]
+      summary: Request a one-time upload URL for the current user's profile photo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilePhotoUploadUrlRequest"
+      responses:
+        "200":
+          description: Upload URL granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfilePhotoUploadUrlResponse"
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+
+  /auth/profile-photo:
+    put:
+      operationId: setProfilePhoto
+      tags: [auth]
+      summary: Finalize and set the current user's profile photo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetProfilePhotoRequest"
+      responses:
+        "200":
+          description: Photo set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      operationId: removeProfilePhoto
+      tags: [auth]
+      summary: Remove the current user's profile photo
+      responses:
+        "200":
+          description: Photo removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+
+  /me/preferences:
+    get:
+      operationId: getMyPreferences
+      tags: [users]
+      summary: Get the current user's UI preferences
+      responses:
+        "200":
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferencesResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+    put:
+      operationId: updateMyPreferences
+      tags: [users]
+      summary: Update the current user's UI preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPreferences"
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferencesResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List users (scoped by RBAC)
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+  /users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /users/{id}/reset-password:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Admin-only — reset another user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetUserPasswordRequest"
+      responses:
+        "200":
+          description: New password (shown once)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetUserPasswordResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /users/{id}/workload:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getUserWorkload
+      tags: [users]
+      summary: Pending assigned activities and eligible reassignment targets for a user
+      responses:
+        "200":
+          description: Workload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserWorkloadResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /users/{id}/reassign-activities:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: reassignUserActivities
+      tags: [users]
+      summary: Reassign a user's pending sub-components to other users before removal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReassignActivitiesRequest"
+      responses:
+        "204":
+          description: Reassigned
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /directory:
+    get:
+      operationId: listDirectory
+      tags: [users]
+      summary: Minimal user directory available to every authenticated role
+      responses:
+        "200":
+          description: Directory entries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectoryListResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+
+  /departments:
+    get:
+      operationId: listDepartments
+      tags: [master-data]
+      responses:
+        "200":
+          description: Departments
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DepartmentListResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      operationId: createDepartment
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NameRequest" }
+      responses:
+        "200":
+          description: Existing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DepartmentResponse" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DepartmentResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /departments/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateDepartment
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterUpdateRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DepartmentResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      operationId: deleteDepartment
+      tags: [master-data]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [master-data]
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CategoryListResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      operationId: createCategory
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NameRequest" }
+      responses:
+        "200":
+          description: Existing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CategoryResponse" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CategoryResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /categories/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateCategory
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterUpdateRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CategoryResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      operationId: deleteCategory
+      tags: [master-data]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+
+  /tags:
+    get:
+      operationId: listTags
+      tags: [master-data]
+      responses:
+        "200":
+          description: Tags
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TagListResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      operationId: createTag
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NameRequest" }
+      responses:
+        "200":
+          description: Existing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TagResponse" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TagResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /tags/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateTag
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterUpdateRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TagResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      operationId: deleteTag
+      tags: [master-data]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+
+  /districts:
+    get:
+      operationId: listDistricts
+      tags: [master-data]
+      responses:
+        "200":
+          description: Districts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DistrictListResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      operationId: createDistrict
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NameRequest" }
+      responses:
+        "200":
+          description: Existing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DistrictResponse" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DistrictResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /districts/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateDistrict
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterUpdateRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DistrictResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      operationId: deleteDistrict
+      tags: [master-data]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+
+  /blocks:
+    get:
+      operationId: listBlocks
+      tags: [master-data]
+      parameters:
+        - in: query
+          name: districtId
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Blocks
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlockListResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      operationId: createBlock
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BlockCreateRequest" }
+      responses:
+        "200":
+          description: Existing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlockResponse" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlockResponse" }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /blocks/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateBlock
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterUpdateRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlockResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      operationId: deleteBlock
+      tags: [master-data]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+
+  /occasions:
+    get:
+      operationId: listOccasions
+      tags: [master-data]
+      responses:
+        "200":
+          description: Occasions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OccasionListResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      operationId: createOccasion
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NameRequest" }
+      responses:
+        "200":
+          description: Existing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OccasionResponse" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OccasionResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /occasions/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateOccasion
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterUpdateRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OccasionResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      operationId: deleteOccasion
+      tags: [master-data]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+
+  /announcements:
+    get:
+      tags: [Announcements]
+      summary: List visible announcements
+      operationId: listAnnouncements
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: pageSize
+          schema: { type: integer }
+        - in: query
+          name: status
+          schema: { type: string }
+          description: Comma-separated list of workflow statuses
+        - in: query
+          name: department
+          schema: { type: string }
+        - in: query
+          name: district
+          schema: { type: string }
+        - in: query
+          name: dateFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: dateTo
+          schema: { type: string, format: date }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: assignedCmoReviewerId
+          schema: { type: integer }
+        - in: query
+          name: createdBy
+          schema: { type: integer }
+        - in: query
+          name: statusBeforeHold
+          schema: { type: string }
+          description: Comma-separated list of pre-hold workflow statuses; filters on_hold items by the status they will be restored to on resume
+        - in: query
+          name: sortBy
+          schema: { type: string }
+          description: Column key to sort by (uniqueId, title, date, department, occasion, location, district, category, workflowStatus, createdBy, id)
+        - in: query
+          name: sortDir
+          schema: { type: string, enum: [asc, desc] }
+          description: Sort direction
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      tags: [Announcements]
+      summary: Create an announcement
+      operationId: createAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateAnnouncementRequest" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Announcements]
+      summary: Get one announcement
+      operationId: getAnnouncement
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+    patch:
+      tags: [Announcements]
+      summary: Update an announcement (draft / reverted / pending_cmo_review recall)
+      operationId: updateAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UpdateAnnouncementRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      tags: [Announcements]
+      summary: Hard-delete a pre-publication announcement (creator or admin only)
+      operationId: deleteAnnouncement
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/submit:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Submit a draft for CMO review
+      operationId: submitAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/VersionRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/review:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: CMO Reviewer approves or reverts
+      operationId: reviewAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ReviewRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/accept:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Department Nodal accepts a published announcement
+      operationId: acceptAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/VersionRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/reconsider:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Department Nodal sends a published / pending-acceptance announcement back to CMO with mandatory remarks
+      operationId: reconsiderAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ReconsiderRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/final-accept:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Department Reviewer grants final acceptance
+      operationId: finalAcceptAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/VersionRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/drop:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Admin or CMO Nodal drops an announcement with mandatory remarks
+      operationId: dropAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DropHoldRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/hold:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Admin or CMO Nodal puts an announcement on hold with mandatory remarks
+      operationId: holdAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DropHoldRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/resume:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Admin or CMO Reviewer resumes a held announcement, restoring its pre-hold status
+      operationId: resumeAnnouncement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/VersionRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/start-progress:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Mark accepted announcement as in-progress
+      operationId: startAnnouncementProgress
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/VersionRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/request-completion:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Department Nodal requests closure review
+      operationId: requestAnnouncementCompletion
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/VersionRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/review-completion:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Department Reviewer approves/reverts completion
+      operationId: reviewAnnouncementCompletion
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ReviewRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/review-cmo-completion:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: CMO Reviewer approves/reverts CMO-side completion
+      operationId: reviewCmoCompletion
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ReviewRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /sub-components:
+    get:
+      tags: [SubComponents]
+      summary: List visible sub-components
+      operationId: listSubComponents
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: pageSize
+          schema: { type: integer }
+        - in: query
+          name: assignedTo
+          schema: { type: integer }
+        - in: query
+          name: announcementId
+          schema: { type: integer }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SubComponentListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      tags: [SubComponents]
+      summary: Add a sub-component to an announcement
+      operationId: createSubComponent
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateSubComponentRequest" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { type: object, properties: { id: { type: integer } }, required: [id] } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+  /sub-components/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [SubComponents]
+      summary: Update sub-component status or assignee
+      operationId: patchSubComponent
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PatchSubComponentRequest" } } }
+      responses:
+        "204": { description: Updated }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+  /sub-components/{id}/remarks:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [SubComponents]
+      summary: List interim remarks for a sub-component
+      operationId: listSubComponentRemarks
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SubComponentRemarkListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      tags: [SubComponents]
+      summary: Post an interim remark on a sub-component
+      operationId: createSubComponentRemark
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateSubComponentRemarkRequest" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { type: object, properties: { id: { type: integer } }, required: [id] } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+  /comments:
+    get:
+      tags: [Comments]
+      summary: List comments visible to user
+      operationId: listComments
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: pageSize
+          schema: { type: integer }
+        - in: query
+          name: announcementId
+          schema: { type: integer }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CommentListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications for the current user
+      operationId: listNotifications
+      parameters:
+        - in: query
+          name: unreadOnly
+          required: false
+          schema: { type: boolean }
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: pageSize
+          schema: { type: integer }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/NotificationListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+  /notifications/{id}/read:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Notifications]
+      summary: Mark a notification as read
+      operationId: markNotificationRead
+      responses:
+        "204": { description: Updated }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      operationId: markAllNotificationsRead
+      responses:
+        "204": { description: Updated }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+
+  /uoi-notes:
+    get:
+      tags: [uoi-notes]
+      operationId: listUoiNotes
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: pageSize
+          schema: { type: integer }
+        - in: query
+          name: departmentId
+          schema: { type: integer }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: all
+          description: When true, returns every matching note without pagination (used for downloads).
+          schema: { type: boolean }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UoiNoteListResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      tags: [uoi-notes]
+      operationId: createUoiNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateUoiNoteRequest" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/UoiNoteResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /uoi-notes/report:
+    get:
+      tags: [uoi-notes]
+      operationId: getUoiNotesReport
+      summary: Aggregate insights across all UOI notes
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UoiNoteReportResponse" } } } }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /uoi-notes/{id}:
+    put:
+      tags: [uoi-notes]
+      operationId: updateUoiNote
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateUoiNoteRequest" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UoiNoteResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      tags: [uoi-notes]
+      operationId: deleteUoiNote
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204": { description: No Content }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+
+components:
+  responses:
+    ErrorResponse:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        db:
+          type: string
+          enum: [connected, unreachable]
+        uptime:
+          type: number
+          description: Server uptime in seconds
+      required: [status]
+    ApiError:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    UserRole:
+      type: string
+      enum:
+        - admin
+        - chief_minister
+        - cmo_nodal
+        - cmo_reviewer
+        - ocac_viewer
+        - dept_head
+        - dept_nodal
+        - dept_reviewer
+        - dept_user
+        - dept_viewer
+    UserStatus:
+      type: string
+      enum: [Active, Inactive]
+    SessionUser:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        department:
+          type: string
+          nullable: true
+        email: { type: string }
+        profileImagePath:
+          type: string
+          nullable: true
+          description: |
+            Normalized object-storage path to the user's uploaded profile
+            photo (e.g. "/objects/uploads/<uuid>"), or null when no photo is
+            set. The image itself is streamed from GET /auth/profile-photo.
+        mustChangePassword:
+          type: boolean
+          description: |
+            True when the user authenticated with a shipped default
+            bootstrap credential and must change their password before
+            being allowed to use any other API endpoint.
+      required: [id, username, name, role, department, email]
+    PublicUser:
+      allOf:
+        - $ref: "#/components/schemas/SessionUser"
+        - type: object
+          properties:
+            mobile:
+              type: string
+              nullable: true
+            status: { $ref: "#/components/schemas/UserStatus" }
+            lastPasswordChange:
+              nullable: true
+              $ref: "#/components/schemas/LastPasswordChange"
+          required: [mobile, status, lastPasswordChange]
+    LastPasswordChange:
+      type: object
+      description: |
+        Most recent password change for this user, sourced from audit_log
+        (action `auth.admin_reset_password` or `auth.change_password`).
+        `null` when no audit entry exists for the account.
+      properties:
+        at: { type: string, format: date-time }
+        action: { type: string }
+        actorId: { type: integer }
+        actorName:
+          type: string
+          nullable: true
+        actorRole: { type: string }
+      required: [at, action, actorId, actorName, actorRole]
+    LoginRequest:
+      type: object
+      properties:
+        username: { type: string }
+        password: { type: string }
+      required: [username, password]
+    AuthResponse:
+      type: object
+      properties:
+        user: { $ref: "#/components/schemas/SessionUser" }
+      required: [user]
+    ProfilePhotoUploadUrlRequest:
+      type: object
+      properties:
+        contentType:
+          type: string
+          description: MIME type of the image (image/png or image/jpeg).
+      required: [contentType]
+    ProfilePhotoUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+          description: One-time PUT URL the browser uploads the raw image to.
+        objectPath:
+          type: string
+          description: Normalized object path to pass back when finalizing.
+        uploadToken:
+          type: string
+          description: HMAC token binding the upload to the current user.
+      required: [uploadURL, objectPath, uploadToken]
+    SetProfilePhotoRequest:
+      type: object
+      properties:
+        objectPath: { type: string }
+        uploadToken: { type: string }
+      required: [objectPath, uploadToken]
+    UserListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items: { $ref: "#/components/schemas/PublicUser" }
+      required: [users]
+    UserResponse:
+      type: object
+      properties:
+        user: { $ref: "#/components/schemas/PublicUser" }
+      required: [user]
+    UserPreferences:
+      type: object
+      description: |
+        Per-account UI preferences that follow a user across devices/browsers.
+        All keys are optional; unset keys fall back to their default at read time.
+      properties:
+        notificationsVisible:
+          type: boolean
+          description: |
+            Chief Minister dashboard: whether the Notifications section is shown.
+            Defaults to true (shown) when unset.
+    UserPreferencesResponse:
+      type: object
+      properties:
+        preferences: { $ref: "#/components/schemas/UserPreferences" }
+      required: [preferences]
+    CreateUserRequest:
+      type: object
+      properties:
+        username: { type: string }
+        password: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        department:
+          type: string
+          nullable: true
+        email: { type: string }
+        mobile:
+          type: string
+          nullable: true
+        status: { $ref: "#/components/schemas/UserStatus" }
+      required: [username, password, name, role, email]
+    UpdateUserRequest:
+      type: object
+      properties:
+        username: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        department:
+          type: string
+          nullable: true
+        email: { type: string }
+        mobile:
+          type: string
+          nullable: true
+        status: { $ref: "#/components/schemas/UserStatus" }
+    PendingActivity:
+      type: object
+      properties:
+        subComponentId: { type: integer }
+        title: { type: string }
+        status: { type: string }
+        announcementId: { type: integer }
+        announcementTitle: { type: string }
+        announcementUniqueId: { type: string }
+        departmentId: { type: integer, nullable: true }
+      required:
+        - subComponentId
+        - title
+        - status
+        - announcementId
+        - announcementTitle
+        - announcementUniqueId
+        - departmentId
+    EligibleAssignee:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        departmentId: { type: integer, nullable: true }
+      required: [id, name, role, departmentId]
+    UserWorkloadResponse:
+      type: object
+      properties:
+        pendingActivities:
+          type: array
+          items: { $ref: "#/components/schemas/PendingActivity" }
+        eligibleAssignees:
+          type: array
+          items: { $ref: "#/components/schemas/EligibleAssignee" }
+      required: [pendingActivities, eligibleAssignees]
+    ReassignActivityItem:
+      type: object
+      properties:
+        subComponentId: { type: integer }
+        newAssignedTo: { type: integer }
+      required: [subComponentId, newAssignedTo]
+    ReassignActivitiesRequest:
+      type: object
+      properties:
+        assignments:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/ReassignActivityItem" }
+      required: [assignments]
+    NameRequest:
+      type: object
+      properties:
+        name: { type: string }
+      required: [name]
+    MasterUpdateRequest:
+      description: At least one of `name` or `isActive` must be provided.
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string }
+        isActive: { type: boolean }
+    BlockCreateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        districtId: { type: integer }
+      required: [name, districtId]
+    Department:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        isActive: { type: boolean }
+      required: [id, name, isActive]
+    District:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        isActive: { type: boolean }
+      required: [id, name, isActive]
+    DistrictListResponse:
+      type: object
+      properties:
+        districts:
+          type: array
+          items: { $ref: "#/components/schemas/District" }
+      required: [districts]
+    DistrictResponse:
+      type: object
+      properties:
+        district: { $ref: "#/components/schemas/District" }
+      required: [district]
+    Block:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        districtId: { type: integer }
+        isActive: { type: boolean }
+      required: [id, name, districtId, isActive]
+    BlockListResponse:
+      type: object
+      properties:
+        blocks:
+          type: array
+          items: { $ref: "#/components/schemas/Block" }
+      required: [blocks]
+    BlockResponse:
+      type: object
+      properties:
+        block: { $ref: "#/components/schemas/Block" }
+      required: [block]
+    Occasion:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        isActive: { type: boolean }
+      required: [id, name, isActive]
+    OccasionListResponse:
+      type: object
+      properties:
+        occasions:
+          type: array
+          items: { $ref: "#/components/schemas/Occasion" }
+      required: [occasions]
+    OccasionResponse:
+      type: object
+      properties:
+        occasion: { $ref: "#/components/schemas/Occasion" }
+      required: [occasion]
+    DirectoryUser:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        name: { type: string }
+        role: { type: string }
+        department: { type: string, nullable: true }
+        status: { type: string, enum: [Active, Inactive] }
+      required: [id, username, name, role, status]
+    DirectoryListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items: { $ref: "#/components/schemas/DirectoryUser" }
+      required: [users]
+    DepartmentListResponse:
+      type: object
+      properties:
+        departments:
+          type: array
+          items: { $ref: "#/components/schemas/Department" }
+      required: [departments]
+    DepartmentResponse:
+      type: object
+      properties:
+        department: { $ref: "#/components/schemas/Department" }
+      required: [department]
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        isActive: { type: boolean }
+      required: [id, name, isActive]
+    CategoryListResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items: { $ref: "#/components/schemas/Category" }
+      required: [categories]
+    CategoryResponse:
+      type: object
+      properties:
+        category: { $ref: "#/components/schemas/Category" }
+      required: [category]
+    Tag:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        isActive: { type: boolean }
+      required: [id, name, isActive]
+    TagListResponse:
+      type: object
+      properties:
+        tags:
+          type: array
+          items: { $ref: "#/components/schemas/Tag" }
+      required: [tags]
+    TagResponse:
+      type: object
+      properties:
+        tag: { $ref: "#/components/schemas/Tag" }
+      required: [tag]
+    WorkflowStatus:
+      type: string
+      enum:
+        - draft
+        - pending_cmo_review
+        - reverted_by_cmo
+        - pending_cmo_reconsideration
+        - published
+        - pending_dept_acceptance
+        - accepted
+        - in_progress
+        - pending_completion_review
+        - reverted_by_dept_reviewer
+        - pending_cmo_completion_review
+        - completed
+        - dropped
+        - on_hold
+    House:
+      type: string
+      enum: [R, L, A]
+    SubComponentStatus:
+      type: string
+      enum: [Pending, "In Progress", Completed]
+    NotificationType:
+      type: string
+      enum: [info, success, warning]
+    AnnouncementAttachment:
+      type: object
+      properties:
+        name: { type: string }
+        size: { type: number }
+        type: { type: string }
+        url: { type: string }
+      required: [name, size, type, url]
+    Announcement:
+      type: object
+      properties:
+        id: { type: integer }
+        uniqueId: { type: string }
+        house:
+          allOf:
+            - $ref: "#/components/schemas/House"
+          nullable: true
+        constituencyNumber: { type: integer, nullable: true }
+        title: { type: string }
+        date: { type: string }
+        description: { type: string }
+        department: { type: string, nullable: true }
+        occasion: { type: string }
+        location: { type: string }
+        district: { type: string, nullable: true }
+        block: { type: string, nullable: true }
+        category: { type: string, nullable: true }
+        otherCategory: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        workflowStatus: { $ref: "#/components/schemas/WorkflowStatus" }
+        createdBy: { type: integer }
+        assignedDeptUserId: { type: integer, nullable: true }
+        assignedCmoReviewerId: { type: integer, nullable: true }
+        acceptedByDeptNodalId: { type: integer, nullable: true }
+        reconsiderationRequested: { type: boolean }
+        statusBeforeHold:
+          allOf:
+            - $ref: "#/components/schemas/WorkflowStatus"
+          nullable: true
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required:
+        - id
+        - uniqueId
+        - title
+        - date
+        - description
+        - department
+        - occasion
+        - location
+        - tags
+        - workflowStatus
+        - createdBy
+        - reconsiderationRequested
+        - version
+        - createdAt
+    AnnouncementListResponse:
+      type: object
+      properties:
+        announcements:
+          type: array
+          items: { $ref: "#/components/schemas/Announcement" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+      required: [announcements, total, page, pageSize]
+    AnnouncementResponse:
+      type: object
+      properties:
+        announcement: { $ref: "#/components/schemas/Announcement" }
+      required: [announcement]
+    CreateAnnouncementRequest:
+      type: object
+      properties:
+        title: { type: string }
+        date: { type: string }
+        description: { type: string }
+        department: { type: string }
+        occasion: { type: string }
+        location: { type: string }
+        district: { type: string, nullable: true }
+        block: { type: string, nullable: true }
+        category: { type: string, nullable: true }
+        otherCategory: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        asDraft: { type: boolean }
+      required: [title, date, department]
+    UpdateAnnouncementRequest:
+      type: object
+      properties:
+        version: { type: integer }
+        title: { type: string }
+        date: { type: string }
+        description: { type: string }
+        department: { type: string }
+        occasion: { type: string }
+        location: { type: string }
+        district: { type: string, nullable: true }
+        block: { type: string, nullable: true }
+        category: { type: string, nullable: true }
+        otherCategory: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+      required: [version]
+    VersionRequest:
+      type: object
+      properties:
+        version: { type: integer }
+      required: [version]
+    ReviewRequest:
+      type: object
+      properties:
+        version: { type: integer }
+        action: { type: string, enum: [approve, revert] }
+        comment: { type: string }
+      required: [version, action]
+    ReconsiderRequest:
+      type: object
+      properties:
+        version: { type: integer }
+        comment: { type: string, minLength: 1 }
+      required: [version, comment]
+    DropHoldRequest:
+      type: object
+      properties:
+        version: { type: integer }
+        remarks: { type: string, minLength: 1 }
+      required: [version, remarks]
+    SubComponent:
+      type: object
+      properties:
+        id: { type: integer }
+        announcementId: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        assignedTo: { type: integer, nullable: true }
+        assignedToName: { type: string, nullable: true }
+        status: { $ref: "#/components/schemas/SubComponentStatus" }
+      required: [id, announcementId, title, description, status]
+    SubComponentListResponse:
+      type: object
+      properties:
+        subComponents:
+          type: array
+          items: { $ref: "#/components/schemas/SubComponent" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+      required: [subComponents, total, page, pageSize]
+    CreateSubComponentRequest:
+      type: object
+      properties:
+        announcementId: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        assignedTo: { type: integer, nullable: true }
+        status: { $ref: "#/components/schemas/SubComponentStatus" }
+      required: [announcementId, title]
+    PatchSubComponentRequest:
+      type: object
+      properties:
+        assignedTo: { type: integer, nullable: true }
+        status: { $ref: "#/components/schemas/SubComponentStatus" }
+    SubComponentRemark:
+      type: object
+      properties:
+        id: { type: integer }
+        subComponentId: { type: integer }
+        userId: { type: integer }
+        userName: { type: string, nullable: true }
+        role: { type: string, nullable: true }
+        remark: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, subComponentId, userId, remark, createdAt]
+    SubComponentRemarkListResponse:
+      type: object
+      properties:
+        remarks:
+          type: array
+          items: { $ref: "#/components/schemas/SubComponentRemark" }
+      required: [remarks]
+    CreateSubComponentRemarkRequest:
+      type: object
+      properties:
+        remark: { type: string, minLength: 1, maxLength: 2000 }
+      required: [remark]
+    AnnouncementComment:
+      type: object
+      properties:
+        id: { type: integer }
+        announcementId: { type: integer }
+        userId: { type: integer }
+        userName: { type: string, nullable: true }
+        role: { type: string, nullable: true }
+        action: { type: string }
+        comment: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, announcementId, userId, action, comment, createdAt]
+    CommentListResponse:
+      type: object
+      properties:
+        comments:
+          type: array
+          items: { $ref: "#/components/schemas/AnnouncementComment" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+      required: [comments, total, page, pageSize]
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        message: { type: string }
+        type: { $ref: "#/components/schemas/NotificationType" }
+        read: { type: boolean }
+        link: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, userId, message, type, read, createdAt]
+    NotificationListResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items: { $ref: "#/components/schemas/Notification" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        unreadCount: { type: integer }
+      required: [notifications, total, page, pageSize, unreadCount]
+    AttachmentRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        announcementId: { type: integer }
+        objectPath: { type: string }
+        fileName: { type: string }
+        fileSize: { type: integer }
+        contentType: { type: string }
+        uploadedBy: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, announcementId, objectPath, fileName, fileSize, contentType, uploadedBy, createdAt]
+    AttachmentListResponse:
+      type: object
+      properties:
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/AttachmentRecord" }
+      required: [attachments]
+    AttachmentResponse:
+      type: object
+      properties:
+        attachment: { $ref: "#/components/schemas/AttachmentRecord" }
+      required: [attachment]
+    RegisterAttachmentRequest:
+      type: object
+      properties:
+        objectPath: { type: string }
+        fileName: { type: string }
+        fileSize: { type: integer }
+        contentType: { type: string }
+        uploadToken:
+          type: string
+          description: >
+            Server-issued one-time token from POST /storage/uploads/request-url
+            that binds the upload to this actor + objectPath. Required.
+      required: [objectPath, fileName, fileSize, contentType, uploadToken]
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        name: { type: string }
+        size: { type: integer }
+        contentType: { type: string }
+        announcementId:
+          type: integer
+          description: >
+            Announcement this upload is intended for. Bound into the
+            issued uploadToken so the file cannot be registered against
+            a different announcement.
+      required: [name, size, contentType, announcementId]
+    RequestUoiNoteUploadUrlBody:
+      type: object
+      properties:
+        name: { type: string }
+        size: { type: integer }
+        contentType: { type: string }
+        uoiNoteId:
+          type: integer
+          description: >
+            UOI note this upload is intended for. Bound into the issued
+            uploadToken so the file cannot be registered against a
+            different note.
+      required: [name, size, contentType, uoiNoteId]
+    UoiNoteAttachmentRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        noteId: { type: integer }
+        objectPath: { type: string }
+        fileName: { type: string }
+        fileSize: { type: integer }
+        contentType: { type: string }
+        uploadedBy: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, noteId, objectPath, fileName, fileSize, contentType, uploadedBy, createdAt]
+    UoiNoteAttachmentListResponse:
+      type: object
+      properties:
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/UoiNoteAttachmentRecord" }
+      required: [attachments]
+    UoiNoteAttachmentResponse:
+      type: object
+      properties:
+        attachment: { $ref: "#/components/schemas/UoiNoteAttachmentRecord" }
+      required: [attachment]
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL: { type: string }
+        objectPath: { type: string }
+        uploadToken:
+          type: string
+          description: >
+            Short-lived HMAC token bound to {actor, objectPath, expiry}.
+            Must be replayed when calling POST /announcements/{id}/attachments.
+        metadata:
+          type: object
+          properties:
+            name: { type: string }
+            size: { type: integer }
+            contentType: { type: string }
+          required: [name, size, contentType]
+      required: [uploadURL, objectPath, uploadToken, metadata]
+    AuditLogEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        actorId: { type: integer, nullable: true }
+        actorName: { type: string, nullable: true }
+        actorRole: { type: string }
+        method: { type: string }
+        route: { type: string }
+        action: { type: string }
+        targetTable: { type: string }
+        targetId: { type: integer, nullable: true }
+        before: { nullable: true }
+        after: { nullable: true }
+        ip: { type: string, nullable: true }
+        userAgent: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, actorRole, method, route, action, targetTable, createdAt]
+    AuditLogListResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/AuditLogEntry" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+      required: [entries, total, page, pageSize]
+    ChangePasswordRequest:
+      type: object
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string }
+      required: [currentPassword, newPassword]
+    ResetUserPasswordRequest:
+      oneOf:
+        - $ref: '#/components/schemas/ResetUserPasswordGenerateRequest'
+        - $ref: '#/components/schemas/ResetUserPasswordCustomRequest'
+      discriminator:
+        propertyName: mode
+        mapping:
+          generate: '#/components/schemas/ResetUserPasswordGenerateRequest'
+          custom: '#/components/schemas/ResetUserPasswordCustomRequest'
+    ResetUserPasswordGenerateRequest:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [generate]
+      required: [mode]
+    ResetUserPasswordCustomRequest:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [custom]
+        password:
+          type: string
+          minLength: 8
+          description: Min 8 chars, must contain a letter and a digit, cannot equal username.
+      required: [mode, password]
+    ResetUserPasswordResponse:
+      type: object
+      properties:
+        password:
+          type: string
+          description: The new plaintext password. Returned exactly once; not stored or logged.
+      required: [password]
+    UoiNote:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        date: { type: string }
+        departmentId: { type: integer }
+        departmentName: { type: string }
+        occasion: { type: string, nullable: true }
+        location: { type: string, nullable: true }
+        description: { type: string }
+        createdBy: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, title, date, departmentId, departmentName, description, createdBy, createdAt]
+    UoiNoteResponse:
+      type: object
+      properties:
+        note: { $ref: "#/components/schemas/UoiNote" }
+      required: [note]
+    UoiNoteListResponse:
+      type: object
+      properties:
+        notes:
+          type: array
+          items: { $ref: "#/components/schemas/UoiNote" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+      required: [notes, total, page, pageSize]
+    CreateUoiNoteRequest:
+      type: object
+      properties:
+        title: { type: string }
+        date: { type: string }
+        departmentId: { type: integer }
+        occasion: { type: string }
+        location: { type: string }
+        description: { type: string }
+      required: [title, date, departmentId, description]
+    UoiNoteCountItem:
+      type: object
+      properties:
+        name: { type: string }
+        count: { type: integer }
+      required: [name, count]
+    UoiNoteMonthItem:
+      type: object
+      properties:
+        month: { type: string, description: "Month bucket in YYYY-MM form" }
+        count: { type: integer }
+      required: [month, count]
+    UoiNoteReportKpis:
+      type: object
+      properties:
+        totalNotes: { type: integer }
+        departmentsCovered: { type: integer }
+        occasionsCount: { type: integer }
+        locationsCount: { type: integer }
+        recentCount: { type: integer, description: "Notes created in the last 30 days" }
+        firstNoteDate: { type: string, format: date-time, nullable: true }
+        lastNoteDate: { type: string, format: date-time, nullable: true }
+      required: [totalNotes, departmentsCovered, occasionsCount, locationsCount, recentCount]
+    UoiNoteReportResponse:
+      type: object
+      properties:
+        kpis: { $ref: "#/components/schemas/UoiNoteReportKpis" }
+        byDepartment:
+          type: array
+          items: { $ref: "#/components/schemas/UoiNoteCountItem" }
+        byOccasion:
+          type: array
+          items: { $ref: "#/components/schemas/UoiNoteCountItem" }
+        byLocation:
+          type: array
+          items: { $ref: "#/components/schemas/UoiNoteCountItem" }
+        byMonth:
+          type: array
+          items: { $ref: "#/components/schemas/UoiNoteMonthItem" }
+        notes:
+          type: array
+          items: { $ref: "#/components/schemas/UoiNote" }
+      required: [kpis, byDepartment, byOccasion, byLocation, byMonth, notes]

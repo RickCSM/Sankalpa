@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "hello": "tsx ./src/hello.ts",
+    "capture-screenshots": "tsx ./src/capture-screenshots.ts",
+    "capture-manual-media": "tsx ./src/capture-manual-media.ts",
+    "generate-manual": "tsx ./src/generate-manual.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:"
+  },
+  "dependencies": {
+    "docx": "^9.6.1",
+    "puppeteer-core": "^25.0.4"
+  }
+}

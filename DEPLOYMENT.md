@@ -1,193 +1,100 @@
-# Sankalpa Odisha — Deployment Guide (human steps)
+# Non-Docker server deployment
 
-This is the **step-by-step checklist a person follows** to put Sankalpa Odisha
-live on a server, from a blank machine to a running site. Follow the steps in
-order; each one is a single action.
+Run the API with Node.js/systemd, serve the built frontend with Nginx, and connect to an existing or separately installed PostgreSQL database. No containers are required.
 
-> The whole application (database, API, website, and HTTPS) runs as Docker
-> containers, so you do **not** install Node, Postgres, or nginx by hand — Docker
-> does all of that for you.
->
-> For deeper reference (every `.env` setting, data migration details, the
-> operations cheat-sheet), see [`deploy/README.md`](deploy/README.md). This file
-> is the high-level "what a human does"; that file is the detailed reference.
+## Requirements
 
----
+- Linux server with systemd, Node.js 24, pnpm 10.26.1, PostgreSQL 16 (local or remote), Nginx and OpenSSL.
+- A domain pointing to the server and a valid TLS certificate. Production login requires HTTPS because session cookies are secure.
+- A PostgreSQL database and login with schema-change privileges. Ask your database administrator to provision these; the app does not create the database itself.
 
-## 0. What you need before you start
+Keep PostgreSQL and API port 5000 private using host/cloud firewall rules. Only Nginx ports 80/443 should be publicly accessible.
 
-- [ ] A Linux server (Ubuntu 22.04+ recommended), **64-bit (amd64)**, with at
-      least 2 GB RAM and a public IP address.
-- [ ] Ability to log into that server over SSH as a user with `sudo`.
-- [ ] A domain name (e.g. `sankalpa.odisha.gov.in`) you can point at the server.
-- [ ] Inbound ports **80** and **443** open in any firewall / security group.
-- [ ] (For real HTTPS) your TLS certificate files, or the ability to run a CA /
-      Let's Encrypt to obtain them.
+## 1. Install the source and dependencies
 
----
+Clone https://github.com/RickCSM/Sankalpa into `/opt/sankalpa`. Create a dedicated `sankalpa` OS user/group and give it ownership of this folder.
 
-## 1. Point your domain at the server
-
-In your DNS provider, create an **A record** for your domain (e.g.
-`sankalpa.odisha.gov.in`) pointing to the server's public IP address. DNS can
-take a little while to propagate — you can continue with the next steps while it
-does.
-
----
-
-## 2. Install Docker on the server
-
-SSH into the server, then install Docker Engine + the Compose plugin:
+Run the following as that user from `/opt/sankalpa`:
 
 ```bash
-# Ubuntu/Debian — one-time install
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker "$USER"        # let your user run docker without sudo
-# log out and back in (or run: newgrp docker) so the group change applies
-docker --version && docker compose version   # confirm both work
+pnpm install --frozen-lockfile
+cp .env.example .env
+chmod 600 .env
+openssl rand -hex 32
 ```
 
-`git` and `openssl` are also needed and are normally already present. If not:
-`sudo apt-get update && sudo apt-get install -y git openssl`.
+Edit `.env`: use the generated random value for `SESSION_SECRET`, your PostgreSQL connection URL for `DATABASE_URL`, and your actual HTTPS origin for `PUBLIC_API_URL` and `ALLOWED_ORIGINS`. Replace all `CHANGE_ME` and example values. Do not paste secrets into logs or commit `.env`.
 
----
-
-## 3. Get the code
+Create persistent file storage as an administrator:
 
 ```bash
-git clone https://github.com/Ashok01-1818/Sankalpa_Odisha_Dockerized.git sankalpa
-cd sankalpa
+sudo install -d -o sankalpa -g sankalpa -m 750 /var/lib/sankalpa/uploads
 ```
 
-Every later command in this guide is run from inside this `sankalpa` folder.
+## 2. Build and initialize the schema
 
----
-
-## 4. Generate secrets and a starter certificate
+From `/opt/sankalpa`, as the application user:
 
 ```bash
-./deploy/gen-secrets.sh
+pnpm --filter @workspace/api-server run build
+NODE_ENV=production BASE_PATH=/ pnpm --filter @workspace/sankalpa-odisha run build
+(cd lib/db && node --env-file=../../.env ./node_modules/drizzle-kit/bin.cjs push --config ./drizzle.config.ts)
 ```
 
-This creates a server-only `.env` file with a strong random database password
-and session key, plus a temporary self-signed HTTPS certificate so the site
-works immediately. **This `.env` file is never uploaded to GitHub** — it stays on
-the server only.
+Schema push changes the selected database. Back up existing data first and review all proposed changes. Do not use `--force` on a live database. Build commands do not import existing announcements or uploaded files.
 
----
+## 3. Run the backend
 
-## 5. Set your domain
-
-Open the `.env` file and set these two values to your real HTTPS address:
+Verify `command -v node` is `/usr/bin/node`; otherwise update `ExecStart` in `server/sankalpa-api.service` to the installed absolute Node.js path. This must be a system-accessible Node.js 24 installation, not another user's private version-manager path.
 
 ```bash
-nano .env
+sudo cp server/sankalpa-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now sankalpa-api
+sudo systemctl status sankalpa-api --no-pager
+curl -f http://127.0.0.1:5000/api/healthz
 ```
 
-```ini
-PUBLIC_API_URL=https://sankalpa.odisha.gov.in
-ALLOWED_ORIGINS=https://sankalpa.odisha.gov.in
-```
+The backend must pass this health check before configuring Nginx. Startup verifies database connectivity and performs the application's production bootstrap/master-data initialization. On a new database, change bootstrap account passwords immediately through the application's forced password-change flow before opening access to users.
 
-> These must be the exact `https://` address people type in their browser.
-> Logins rely on HTTPS, so the address must start with `https://`.
+## 4. Serve the frontend over HTTPS
 
-Save and close the file.
-
----
-
-## 6. Install real HTTPS certificates (recommended)
-
-The starter certificate from step 4 works, but browsers show a security warning
-until you install real ones. When you have your certificate files, copy them into
-the `certs` folder using these exact names, then restart the website container:
+Obtain a TLS certificate using your server's certificate tooling. Then:
 
 ```bash
-cp /path/to/your_fullchain.pem certs/fullchain.pem
-cp /path/to/your_privatekey.pem certs/privkey.pem
-docker compose restart web
+sudo install -d -m 755 /var/www/sankalpa
+sudo cp -R artifacts/sankalpa-odisha/dist/public/. /var/www/sankalpa/
+sudo chmod -R a+rX /var/www/sankalpa
+sudo cp server/nginx.conf /etc/nginx/sites-available/sankalpa
 ```
 
-You can do this now, or later — the site runs either way. (If a separate load
-balancer already handles HTTPS for you, see the "TLS certificates" section in
-[`deploy/README.md`](deploy/README.md).)
-
----
-
-## 7. Start the application
+Edit `/etc/nginx/sites-available/sankalpa`: replace the domain and certificate paths. On Debian/Ubuntu, enable the site with a symlink into `/etc/nginx/sites-enabled/`; on other distributions use the appropriate Nginx include directory. Resolve any conflicting site configuration for the same domain.
 
 ```bash
-docker compose up -d --build
+sudo ln -s /etc/nginx/sites-available/sankalpa /etc/nginx/sites-enabled/sankalpa
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
-The first run takes a few minutes while it builds everything. On first start the
-app automatically creates its database tables and seeds the initial login and
-master data — there is **no manual database step**.
+The sample serves static files from `/var/www/sankalpa` and proxies `/api/` to `127.0.0.1:5000`, preserving the `/api/` prefix. Do not use the old Docker hostname `api:5000` on a non-Docker server.
 
----
+Verify `https://YOUR_DOMAIN/api/healthz`, then login through HTTPS. Do not run the development or Vite preview server as the production web server.
 
-## 8. (Optional) Bring over existing data
+## Updates
 
-Skip this on a brand-new deployment. If you are **moving an existing Sankalpa
-Odisha** onto this server, import the old database and uploaded files **after the
-stack from step 7 is up** — both scripts talk to the running containers (the
-database restore runs against the live `db` service), so they fail if nothing is
-running yet:
+Back up the PostgreSQL database, `.env` and `/var/lib/sankalpa/uploads`. Pull `main`, install dependencies, rebuild both services, and review/apply required schema changes using step 2. Copy the new frontend build to `/var/www/sankalpa` and restart `sankalpa-api`. Recheck both local and HTTPS health endpoints.
+
+## Moving from an existing deployment
+
+Changing the repository does not move your existing data. Preserve your current database and uploads before changing services. Use a reviewed PostgreSQL backup/restore process if moving databases, and copy uploaded files to the configured `UPLOAD_DIR` while preserving their relative paths and sidecar metadata. Ensure the `sankalpa` user can read/write them. Never delete the old database or storage until the new deployment is verified.
+
+## Troubleshooting a 502
 
 ```bash
-./deploy/restore-db.sh sankalpa_db_dump.sql          # a fresh dump from the old database
-./deploy/import-uploads.sh object_storage_export.tar.gz   # the old uploaded files
-docker compose restart api                           # re-seed idempotently after the restore
+sudo systemctl status sankalpa-api --no-pager
+sudo journalctl -u sankalpa-api -n 100 --no-pager
+curl -v http://127.0.0.1:5000/api/healthz
+sudo tail -n 80 /var/log/nginx/error.log
 ```
 
-For the full step-by-step (export from the old system, copy across, restore,
-verify, and what exactly is migrated — all users, roles, and logins included),
-see [`MIGRATION.md`](MIGRATION.md). The "One-time data migration" section in
-[`deploy/README.md`](deploy/README.md) covers how to produce those two files.
-
----
-
-## 9. Check that it's live
-
-```bash
-docker compose ps          # all services should show "running"/"healthy"
-docker compose logs -f api # watch startup; press Ctrl-C to stop watching
-```
-
-Then open `https://your-domain` in a browser. You should see the Sankalpa Odisha
-login page. Log in with the administrator account provided in your project
-handover, then create the remaining users from inside the app.
-
----
-
-## 10. Updating later (routine redeploy)
-
-Whenever there is a new version, run **two commands** from the `sankalpa` folder:
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-…or the equivalent shortcut: `./deploy/deploy.sh`.
-
-Your data is safe across updates — the database and uploaded files live in Docker
-volumes that survive every rebuild. They are only deleted if someone explicitly
-runs `docker compose down -v`.
-
----
-
-## Quick troubleshooting
-
-| Symptom | Where to look |
-| --- | --- |
-| A service isn't healthy | `docker compose ps` and `docker compose logs -f api` (or `web`) |
-| Browser shows a certificate warning | You're on the starter cert — do step 6 |
-| Can't log in | Make sure you're on `https://` and `PUBLIC_API_URL`/`ALLOWED_ORIGINS` match the exact address (step 5) |
-| Need every config option | Full reference in [`deploy/README.md`](deploy/README.md) |
-
----
-
-**Security note:** the real `.env` file, the `certs/` folder, and uploaded files
-are intentionally kept off GitHub. Only `.env.example` (a placeholder template)
-is in the repository. Never commit real secrets.
+A failed local health check points to API startup, database connectivity, configuration or port issues. If it succeeds but HTTPS requests return 502, inspect Nginx's upstream and OS access policies. Redact credentials and personal data before sharing logs.

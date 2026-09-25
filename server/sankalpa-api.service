@@ -1,0 +1,19 @@
+[Unit]
+Description=Sankalpa Odisha API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sankalpa
+Group=sankalpa
+WorkingDirectory=/opt/sankalpa
+ExecStart=/usr/bin/node --env-file=/opt/sankalpa/.env --enable-source-maps /opt/sankalpa/artifacts/api-server/dist/index.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

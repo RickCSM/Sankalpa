@@ -8,37 +8,27 @@ import {
   getListAnnouncementsQueryKey,
   type Announcement as ApiAnnouncement,
 } from '@workspace/api-client-react';
-import { workflowStatusLabels, workflowStatusColors, WorkflowStatus, formatDate } from '@/data/mockData';
+import { workflowStatusLabels, workflowStatusColors, WorkflowStatus } from '@/data/mockData';
 import { statusGroups } from '@/data/statusGroups';
 import {
   useListDistricts,
   getListDistrictsQueryKey,
   useListDepartments,
   getListDepartmentsQueryKey,
+  useListOccasions,
+  getListOccasionsQueryKey,
+  useListTags,
+  getListTagsQueryKey,
 } from '@workspace/api-client-react';
 import SortableHeader from '@/components/SortableHeader';
 import type { SortConfig } from '@/hooks/useSortableTable';
 import { listAnnouncements } from '@workspace/api-client-react';
 import { downloadExcel, type ReportColumn } from '@/lib/reportDownloads';
+import { ANNOUNCEMENT_COLUMNS as COLUMNS, formatAnnouncementColumn, type AnnouncementColumnKey as ColumnKey } from '@/lib/announcementColumns';
 
 // Single source of truth shared with the dashboard KPI counts and the server
 // stats endpoint so a KPI count always equals its drilled-in record list.
 const statusGroupMap: Record<string, WorkflowStatus[]> = statusGroups;
-
-const COLUMNS = [
-  { key: 'uniqueId', label: 'Unique ID', defaultOn: true },
-  { key: 'title', label: 'Title', defaultOn: true },
-  { key: 'date', label: 'Date', defaultOn: true },
-  { key: 'department', label: 'Department', defaultOn: true },
-  { key: 'occasion', label: 'Occasion', defaultOn: true },
-  { key: 'location', label: 'Location', defaultOn: true },
-  { key: 'district', label: 'District', defaultOn: false },
-  { key: 'category', label: 'Category', defaultOn: false },
-  { key: 'createdBy', label: 'Created By', defaultOn: false },
-  { key: 'workflowStatus', label: 'Status', defaultOn: true },
-] as const;
-
-type ColumnKey = typeof COLUMNS[number]['key'];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200] as const;
 
@@ -50,14 +40,16 @@ export default function AnnouncementsPage() {
 
   const params = useMemo(() => new URLSearchParams(searchString), [searchString]);
 
-  type Filters = { status: string; statusGroup: string; department: string; district: string; dateFrom: string; dateTo: string; search: string };
-  const emptyFilters: Filters = { status: '', statusGroup: '', department: '', district: '', dateFrom: '', dateTo: '', search: '' };
+  type Filters = { status: string; statusGroup: string; department: string; district: string; occasion: string; tag: string; dateFrom: string; dateTo: string; search: string };
+  const emptyFilters: Filters = { status: '', statusGroup: '', department: '', district: '', occasion: '', tag: '', dateFrom: '', dateTo: '', search: '' };
 
   const parseParams = (p: URLSearchParams): Filters => ({
     status: p.get('status') || '',
     statusGroup: p.get('statusGroup') || '',
     department: p.get('department') || '',
     district: p.get('district') || '',
+    occasion: p.get('occasion') || '',
+    tag: p.get('tag') || '',
     dateFrom: p.get('dateFrom') || '',
     dateTo: p.get('dateTo') || '',
     search: p.get('search') || '',
@@ -96,6 +88,18 @@ export default function AnnouncementsPage() {
     if (filters.department && !active.includes(filters.department)) active.push(filters.department);
     return active;
   }, [departmentsQuery.data, filters.department]);
+  const occasionsQuery = useListOccasions({ query: { queryKey: getListOccasionsQueryKey() } });
+  const occasionOptions = useMemo(() => {
+    const active = (occasionsQuery.data?.occasions ?? []).filter(o => o.isActive).map(o => o.name);
+    if (filters.occasion && !active.includes(filters.occasion)) active.push(filters.occasion);
+    return active;
+  }, [occasionsQuery.data, filters.occasion]);
+  const tagsQuery = useListTags({ query: { queryKey: getListTagsQueryKey() } });
+  const tagOptions = useMemo(() => {
+    const active = (tagsQuery.data?.tags ?? []).filter(t => t.isActive).map(t => t.name);
+    if (filters.tag && !active.includes(filters.tag)) active.push(filters.tag);
+    return active;
+  }, [tagsQuery.data, filters.tag]);
   const [currentPage, setCurrentPage] = useState(() => {
     const pg = parseInt(params.get('page') || '1', 10);
     return pg > 0 ? pg : 1;
@@ -160,6 +164,8 @@ export default function AnnouncementsPage() {
     if (statusListForServer.length > 0) qp.status = statusListForServer.join(',');
     if (filters.department) qp.department = filters.department;
     if (filters.district) qp.district = filters.district;
+    if (filters.occasion) qp.occasion = filters.occasion;
+    if (filters.tag) qp.tag = filters.tag;
     if (filters.dateFrom) qp.dateFrom = filters.dateFrom;
     if (filters.dateTo) qp.dateTo = filters.dateTo;
     if (filters.search) qp.search = filters.search;
@@ -259,23 +265,10 @@ export default function AnnouncementsPage() {
         setExportError('No announcements to export for the current filters.');
         return;
       }
-      // Mirror the table cells exactly, including the em-dash fallback.
-      const formatters: Record<ColumnKey, (a: ApiAnnouncement) => string> = {
-        uniqueId: a => a.uniqueId || '—',
-        title: a => a.title || '—',
-        date: a => (a.date ? formatDate(a.date) : '—'),
-        department: a => a.department || '—',
-        occasion: a => a.occasion || '—',
-        location: a => a.location || '—',
-        district: a => a.district || '—',
-        category: a => a.category || '—',
-        createdBy: a => userNameMap.get(a.createdBy) || '—',
-        workflowStatus: a => workflowStatusLabels[a.workflowStatus as WorkflowStatus] || a.workflowStatus || '—',
-      };
       type ExportRow = Record<string, string | number>;
       const exportRows: ExportRow[] = rows.map((a, i) => {
         const rec: ExportRow = { slNo: i + 1 };
-        for (const c of selectedCols) rec[c.key] = formatters[c.key](a);
+        for (const c of selectedCols) rec[c.key] = formatAnnouncementColumn(a, c.key, userNameMap);
         return rec;
       });
       const columns: ReportColumn<ExportRow>[] = [
@@ -298,22 +291,18 @@ export default function AnnouncementsPage() {
     return (
       <tr key={item.id} className="clickable-row" onClick={() => navigate(`/announcements/${item.id}`)}>
         <td>{paginatedStart + idx + 1}</td>
-        {visibleColumns.has('uniqueId') && <td style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#e87722', whiteSpace: 'nowrap' }}>{item.uniqueId}</td>}
-        {visibleColumns.has('title') && <td style={{ color: '#1a3a5c', fontWeight: 500 }}>{item.title}</td>}
-        {visibleColumns.has('date') && <td>{formatDate(item.date)}</td>}
-        {visibleColumns.has('department') && <td>{item.department || '—'}</td>}
-        {visibleColumns.has('occasion') && <td>{item.occasion || '—'}</td>}
-        {visibleColumns.has('location') && <td>{item.location || '—'}</td>}
-        {visibleColumns.has('district') && <td>{item.district || '—'}</td>}
-        {visibleColumns.has('category') && <td>{item.category || '—'}</td>}
-        {visibleColumns.has('createdBy') && <td style={{ fontSize: 12 }}>{userNameMap.get(item.createdBy) || '—'}</td>}
-        {visibleColumns.has('workflowStatus') && (
-          <td>
-            <span className={`status-badge ${workflowStatusColors[status]}`}>
-              {workflowStatusLabels[status]}
-            </span>
+        {COLUMNS.filter(column => visibleColumns.has(column.key)).map(column => (
+          <td key={column.key} style={
+            column.key === 'uniqueId' ? { fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#e87722', whiteSpace: 'nowrap' } :
+            column.key === 'title' ? { color: '#1a3a5c', fontWeight: 500 } :
+            column.key === 'createdBy' ? { fontSize: 12 } :
+            column.key === 'description' || column.key === 'tags' ? { minWidth: 180, maxWidth: 360, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } : undefined
+          }>
+            {column.key === 'workflowStatus' ? (
+              <span className={`status-badge ${workflowStatusColors[status]}`}>{workflowStatusLabels[status]}</span>
+            ) : formatAnnouncementColumn(item, column.key, userNameMap)}
           </td>
-        )}
+        ))}
         <td>
           <i className="bi bi-eye" style={{ color: '#1a3a5c' }}></i>
         </td>
@@ -379,7 +368,7 @@ export default function AnnouncementsPage() {
                 <i className="bi bi-layout-three-columns"></i> Columns <i className="bi bi-chevron-down" style={{ fontSize: 11, marginLeft: 2 }}></i>
               </button>
               {showColPicker && (
-                <div className="col-picker-dropdown">
+                <div className="col-picker-dropdown" style={{ maxHeight: 'min(440px, 65vh)', overflowY: 'auto' }}>
                   {COLUMNS.map(col => (
                     <label key={col.key} className="col-picker-item" style={col.key === 'title' ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}>
                       <input
@@ -467,7 +456,31 @@ export default function AnnouncementsPage() {
                 </div>
 
                 <div className="filter-group">
-                  <label>From Date</label>
+                  <label htmlFor="announcement-filter-occasion">Occasion</label>
+                  <select
+                    id="announcement-filter-occasion"
+                    value={filters.occasion}
+                    onChange={e => updateFilter('occasion', e.target.value)}
+                  >
+                    <option value="">All Occasions</option>
+                    {occasionOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label htmlFor="announcement-filter-tag">Relevant Tags</label>
+                  <select
+                    id="announcement-filter-tag"
+                    value={filters.tag}
+                    onChange={e => updateFilter('tag', e.target.value)}
+                  >
+                    <option value="">All Relevant Tags</option>
+                    {tagOptions.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label>Announcement Date From</label>
                   <input
                     type="date"
                     value={filters.dateFrom}
@@ -476,7 +489,7 @@ export default function AnnouncementsPage() {
                 </div>
 
                 <div className="filter-group">
-                  <label>To Date</label>
+                  <label>Announcement Date To</label>
                   <input
                     type="date"
                     value={filters.dateTo}

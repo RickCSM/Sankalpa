@@ -7,8 +7,9 @@ import { roleLabels, type UserRole } from '@/data/mockData';
 import { useSortableTable } from '@/hooks/useSortableTable';
 import SortableHeader from '@/components/SortableHeader';
 import { getFriendlyErrorMessage } from '@/lib/errorMessages';
+import { userDesignationOptions } from '@/lib/userDesignations';
 
-import { useListUsers, useListDepartments, useResetUserPassword } from '@workspace/api-client-react';
+import { useListUsers, useListDepartments, useListDesignations, getListDesignationsQueryKey, useResetUserPassword } from '@workspace/api-client-react';
 import type { PendingActivity, EligibleAssignee } from '@workspace/api-client-react';
 import ResetPasswordModal from '@/components/ResetPasswordModal';
 import ReassignActivitiesModal from '@/components/ReassignActivitiesModal';
@@ -61,6 +62,9 @@ export default function UsersPage() {
   const isDeptNodalScope = user?.role === 'dept_nodal';
   const usersQuery = useListUsers();
   const departmentsQuery = useListDepartments();
+  const designationsQuery = useListDesignations({
+    query: { queryKey: getListDesignationsQueryKey(), enabled: isAdmin, staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: true },
+  });
   // /api/users is server-scoped (admin sees all; dept_nodal sees only
   // dept_reviewer + dept_user in their own department), so the list returned
   // here is already the authorized set.
@@ -70,6 +74,8 @@ export default function UsersPage() {
     name: u.name,
     role: u.role as UserRole,
     department: u.department ?? undefined,
+    designationId: u.designationId ?? null,
+    designation: u.designation ?? null,
     email: u.email,
     mobile: u.mobile ?? undefined,
     status: u.status,
@@ -94,6 +100,7 @@ export default function UsersPage() {
     name: '',
     role: '' as UserRole | '',
     department: '',
+    designationId: '',
     email: '',
     mobile: '',
   });
@@ -101,6 +108,10 @@ export default function UsersPage() {
   const [emailError, setEmailError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const designationOptions = userDesignationOptions(
+    designationsQuery.data?.designations ?? [],
+    visibleUsers.find(existing => existing.id === editingUserId),
+  );
 
   const { sortedData: sortedUsers, sortConfig: userSortConfig, requestSort: requestUserSort } = useSortableTable(visibleUsers);
 
@@ -116,7 +127,7 @@ export default function UsersPage() {
   };
 
   const resetForm = () => {
-    setFormData({ username: '', password: '', name: '', role: '', department: '', email: '', mobile: '' });
+    setFormData({ username: '', password: '', name: '', role: '', department: '', designationId: '', email: '', mobile: '' });
     setMobileError('');
     setEmailError('');
     setSubmitError('');
@@ -145,6 +156,7 @@ export default function UsersPage() {
         department: isDeptNodalScope ? (user?.department || '') : (formData.department || user?.department || ''),
         email: formData.email,
         mobile: formData.mobile || undefined,
+        ...(isAdmin ? { designationId: formData.designationId ? Number(formData.designationId) : null } : {}),
         status: 'Active',
       });
       resetForm();
@@ -165,6 +177,7 @@ export default function UsersPage() {
       name: u.name,
       role: u.role,
       department: u.department || '',
+      designationId: u.designationId == null ? '' : String(u.designationId),
       email: u.email,
       mobile: u.mobile || '',
     });
@@ -188,6 +201,7 @@ export default function UsersPage() {
         department: isDeptNodalScope ? (user?.department || '') : (formData.department || user?.department || ''),
         email: formData.email,
         mobile: formData.mobile || undefined,
+        ...(isAdmin ? { designationId: formData.designationId ? Number(formData.designationId) : null } : {}),
       });
       resetForm();
     } catch (err) {
@@ -353,6 +367,31 @@ export default function UsersPage() {
                     <label>Full Name <span className="required">*</span></label>
                     <input type="text" placeholder="Enter full name" value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} />
                   </div>
+                  {isAdmin && (
+                    <div className="form-group">
+                      <label htmlFor="user-designation">Designation</label>
+                      <select id="user-designation" value={formData.designationId}
+                        disabled={designationsQuery.isPending || designationsQuery.isError}
+                        onChange={e => setFormData(previous => ({ ...previous, designationId: e.target.value }))}>
+                        <option value="">{designationsQuery.isPending ? 'Loading designations…' : 'Select Designation (Optional)'}</option>
+                        {designationOptions.map(designation => (
+                          <option key={designation.id} value={designation.id}>
+                            {designation.name}{!designation.isActive ? ' (Inactive — currently assigned)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {designationsQuery.isError ? (
+                        <span className="field-error" role="alert">
+                          Unable to load designations.{' '}
+                          <button type="button" className="btn-cancel" onClick={() => void designationsQuery.refetch()}>Retry</button>
+                        </span>
+                      ) : !designationsQuery.isPending && designationOptions.length === 0 ? (
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          Add an active designation in Masters → Designation Master to make it available here.
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                   <div className="form-group">
                     <label>Email <span className="required">*</span></label>
                     <input
@@ -447,6 +486,7 @@ export default function UsersPage() {
                       <SortableHeader label="Mobile" sortKey="mobile" sortConfig={userSortConfig} onSort={requestUserSort} />
                       <SortableHeader label="Role" sortKey="role" sortConfig={userSortConfig} onSort={requestUserSort} />
                       <SortableHeader label="Department" sortKey="department" sortConfig={userSortConfig} onSort={requestUserSort} />
+                      {isAdmin && <SortableHeader label="Designation" sortKey="designation" sortConfig={userSortConfig} onSort={requestUserSort} />}
                       <SortableHeader label="Status" sortKey="status" sortConfig={userSortConfig} onSort={requestUserSort} />
                       <th>Last Password Change</th>
                       <th>Action</th>
@@ -461,6 +501,7 @@ export default function UsersPage() {
                         <td>{u.mobile || '-'}</td>
                         <td><span className="status-badge in-progress">{roleLabels[u.role]}</span></td>
                         <td>{u.department || '-'}</td>
+                        {isAdmin && <td>{u.designation || '—'}</td>}
                         <td>
                           <span className={`status-badge ${u.status === 'Active' ? 'completed' : 'not-started'}`}>
                             {u.status}

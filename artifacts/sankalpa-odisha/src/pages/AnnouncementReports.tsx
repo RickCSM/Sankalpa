@@ -12,6 +12,7 @@ import SortableHeader from '@/components/SortableHeader';
 import ReportHeader from '@/components/ReportHeader';
 import { downloadExcel, downloadPdf, ExcelBuilder, PdfBuilder, type ReportColumn } from '@/lib/reportDownloads';
 import type { WorkflowStatus, Announcement } from '@/data/mockData';
+import { locationReportPresentation } from '@/lib/locationReportPresentation';
 
 const AGING_BUCKETS = [
   { label: '0-7 days', min: 0, max: 7, color: '#16a34a', bg: '#dcfce7' },
@@ -147,6 +148,7 @@ const NO_BLOCK_PARAM = '__no-block__';
 
 export function LocationWiseReport() {
   const { user } = useAuth();
+  const presentation = locationReportPresentation(user?.role);
   const [, navigate] = useLocation();
   const search = useSearch();
   // URL-driven drill-in: /reports/location-wise?district=Khordha shows the
@@ -164,7 +166,12 @@ export function LocationWiseReport() {
     { groupBy: 'block', district: selectedDistrict ?? undefined, draftMode: 'exclude' },
     !!user && !!selectedDistrict,
   );
-  const districtData = useMemo(() => mergeBuckets(odishaDistricts, districtAgg.buckets), [districtAgg.buckets]);
+  const districtData = useMemo(() => mergeBuckets(
+    odishaDistricts,
+    // The CM summary always has exactly the 30 official districts, including
+    // zero-count districts; non-master aggregate keys must not add extra rows.
+    presentation.paginate ? districtAgg.buckets : districtAgg.buckets.filter(bucket => odishaDistricts.includes(bucket.key)),
+  ), [districtAgg.buckets, presentation.paginate]);
   const blockData = useMemo(
     // Keep the blank-block bucket visible as "(No Block)" so the drill-in rows
     // always sum to the district row's total (count<->list invariant).
@@ -175,13 +182,13 @@ export function LocationWiseReport() {
   const activeData = selectedDistrict ? blockData : districtData;
   const { sortedData, sortConfig, requestSort } = useSortableTable(activeData);
   const totalPages = Math.ceil(sortedData.length / PAGE_SIZE);
-  const paged = sortedData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paged = presentation.paginate ? sortedData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : sortedData;
 
   const cols = useMemo(() => {
     const labelCol: ReportColumn<typeof sortedData[number]> = { key: 'name', label: selectedDistrict ? 'Block' : 'District' };
     return [labelCol, ...STATUS_BREAKDOWN_COLUMNS.slice(1) as ReportColumn<typeof sortedData[number]>[]];
   }, [selectedDistrict]);
-  const reportName = selectedDistrict ? `Location-wise Report — ${selectedDistrict} Blocks` : 'Location-wise Report';
+  const reportName = selectedDistrict ? `${presentation.title} — ${selectedDistrict} Blocks` : presentation.title;
   const filterSummary = [
     ...(selectedDistrict ? [`District: ${selectedDistrict}`] : ['Scope: All Districts']),
     `Records: ${sortedData.length}`,
@@ -241,7 +248,7 @@ export function LocationWiseReport() {
                           : `/reports/location-wise/${encodeURIComponent(row.name)}`;
                         return (
                           <tr key={row.id}>
-                            <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                            <td>{(presentation.paginate ? (page - 1) * PAGE_SIZE : 0) + idx + 1}</td>
                             <td>
                               {!selectedDistrict ? (
                                 <a
@@ -275,7 +282,7 @@ export function LocationWiseReport() {
                   </tbody>
                 </table>
               </div>
-              <PaginationControls page={page} totalPages={totalPages} setPage={setPage} />
+              {presentation.paginate && <PaginationControls page={page} totalPages={totalPages} setPage={setPage} />}
             </div>
           </div>
         </div>
@@ -633,7 +640,8 @@ export function LocationDetailReport() {
     { key: 'createdByName', label: 'Created By' },
   ];
   const locationLabel = blockLabel ? `${district} / ${blockLabel}` : district;
-  const reportName = `Location-wise Report — ${locationLabel} (${activeGroup.label})`;
+  const reportTitle = locationReportPresentation(user?.role).title;
+  const reportName = `${reportTitle} — ${locationLabel} (${activeGroup.label})`;
   const filterSummary = [
     `District: ${district}`,
     ...(blockLabel ? [`Block: ${blockLabel}`] : []),
@@ -657,7 +665,7 @@ export function LocationDetailReport() {
         <div className="page-container">
           <div className="inner-page-layout">
             <div className="page-header"><h4>District not found</h4></div>
-            <a onClick={() => navigate('/reports/location-wise')} style={{ color: '#2563eb', cursor: 'pointer' }}>← Back to Location-wise Report</a>
+            <a onClick={() => navigate('/reports/location-wise')} style={{ color: '#2563eb', cursor: 'pointer' }}>← Back to {reportTitle}</a>
           </div>
         </div>
       </Layout>
@@ -677,7 +685,7 @@ export function LocationDetailReport() {
                 onClick={() => navigate('/reports/location-wise')}
                 style={{ color: '#2563eb', cursor: 'pointer', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6 }}
               >
-                <i className="bi bi-chevron-left"></i> Back to Location-wise Report
+                <i className="bi bi-chevron-left"></i> Back to {reportTitle}
               </a>
             }
             onExcel={handleExcel}

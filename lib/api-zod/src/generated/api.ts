@@ -482,6 +482,8 @@ export const ListUsersResponse = zod.object({
       })
       .and(
         zod.object({
+          designationId: zod.number().nullish(),
+          designation: zod.string().nullish(),
           mobile: zod.string().nullable(),
           status: zod.enum(["Active", "Inactive"]),
           lastPasswordChange: zod
@@ -504,7 +506,13 @@ export const ListUsersResponse = zod.object({
 /**
  * @summary Create a user
  */
+
 export const CreateUserBody = zod.object({
+  designationId: zod
+    .number()
+    .min(1)
+    .nullish()
+    .describe("Optional active designation ID; only System Admin may assign"),
   username: zod.string(),
   password: zod.string(),
   name: zod.string(),
@@ -534,6 +542,13 @@ export const UpdateUserParams = zod.object({
 });
 
 export const UpdateUserBody = zod.object({
+  designationId: zod
+    .number()
+    .min(1)
+    .nullish()
+    .describe(
+      "System Admin only; omit to preserve, null to clear, active ID to assign",
+    ),
   username: zod.string().optional(),
   name: zod.string().optional(),
   role: zod
@@ -591,6 +606,8 @@ export const UpdateUserResponse = zod.object({
     })
     .and(
       zod.object({
+        designationId: zod.number().nullish(),
+        designation: zod.string().nullish(),
         mobile: zod.string().nullable(),
         status: zod.enum(["Active", "Inactive"]),
         lastPasswordChange: zod
@@ -764,6 +781,63 @@ export const UpdateDepartmentResponse = zod.object({
 });
 
 export const DeleteDepartmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List designations (System Admin only)
+ */
+export const ListDesignationsResponse = zod.object({
+  designations: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      isActive: zod.boolean(),
+    }),
+  ),
+});
+
+export const createDesignationBodyNameMax = 200;
+
+export const createDesignationBodyIsActiveDefault = true;
+
+export const CreateDesignationBody = zod.object({
+  name: zod.string().min(1).max(createDesignationBodyNameMax),
+  isActive: zod.boolean().default(createDesignationBodyIsActiveDefault),
+});
+
+export const CreateDesignationResponse = zod.object({
+  designation: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    isActive: zod.boolean(),
+  }),
+});
+
+export const UpdateDesignationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDesignationBody = zod
+  .object({
+    name: zod.string().optional(),
+    isActive: zod.boolean().optional(),
+  })
+  .describe("At least one of `name` or `isActive` must be provided.");
+
+export const UpdateDesignationResponse = zod.object({
+  designation: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    isActive: zod.boolean(),
+  }),
+});
+
+export const DisableDesignationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const HardDeleteDesignationParams = zod.object({
   id: zod.coerce.number(),
 });
 
@@ -1012,6 +1086,16 @@ export const ListAnnouncementsQueryParams = zod.object({
     .describe("Comma-separated list of workflow statuses"),
   department: zod.coerce.string().optional(),
   district: zod.coerce.string().optional(),
+  occasion: zod.coerce
+    .string()
+    .optional()
+    .describe("Exact occasion name; combined with other filters"),
+  tag: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Exact relevant tag contained in the announcement's tags; combined with other filters",
+    ),
   dateFrom: zod.date().optional(),
   dateTo: zod.date().optional(),
   search: zod.coerce.string().optional(),
@@ -1027,7 +1111,7 @@ export const ListAnnouncementsQueryParams = zod.object({
     .string()
     .optional()
     .describe(
-      "Column key to sort by (uniqueId, title, date, department, occasion, location, district, category, workflowStatus, createdBy, id)",
+      "Column key to sort by (uniqueId, title, date, description, department, occasion, location, district, block, category, otherCategory, tags, workflowStatus, createdBy, id)",
     ),
   sortDir: zod.enum(["asc", "desc"]).optional().describe("Sort direction"),
 });
@@ -1856,14 +1940,28 @@ export const ResumeAnnouncementResponse = zod.object({
 });
 
 /**
- * @summary Mark accepted announcement as in-progress
+ * @summary Start progress on an accepted announcement with a mandatory comment
  */
 export const StartAnnouncementProgressParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const startAnnouncementProgressBodyVersionMin = 0;
+
+export const startAnnouncementProgressBodyCommentMax = 2000;
+
+export const startAnnouncementProgressBodyCommentRegExp = new RegExp("\\S");
+
 export const StartAnnouncementProgressBody = zod.object({
-  version: zod.number(),
+  version: zod.number().min(startAnnouncementProgressBodyVersionMin),
+  comment: zod
+    .string()
+    .min(1)
+    .max(startAnnouncementProgressBodyCommentMax)
+    .regex(startAnnouncementProgressBodyCommentRegExp)
+    .describe(
+      "Required nonblank start-progress comment, trimmed before saving.",
+    ),
 });
 
 export const StartAnnouncementProgressResponse = zod.object({
@@ -1934,8 +2032,13 @@ export const RequestAnnouncementCompletionParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const requestAnnouncementCompletionBodyVersionMin = 0;
+
+export const requestAnnouncementCompletionBodyRemarksMax = 2000;
+
 export const RequestAnnouncementCompletionBody = zod.object({
-  version: zod.number(),
+  version: zod.number().min(requestAnnouncementCompletionBodyVersionMin),
+  remarks: zod.string().min(1).max(requestAnnouncementCompletionBodyRemarksMax),
 });
 
 export const RequestAnnouncementCompletionResponse = zod.object({

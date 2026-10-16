@@ -1,3 +1,4 @@
+import { withLoading } from './loading';
 // Export libraries and font data are loaded only when a report is requested.
 import type ExcelJS from 'exceljs';
 import type jsPDFType from 'jspdf';
@@ -364,12 +365,14 @@ export class ExcelBuilder {
   }
 
   async download(): Promise<void> {
-    const buffer = await this.toBuffer();
-    triggerBrowserDownload(
-      buffer,
-      buildExcelFilename(this.reportName),
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
+    await withLoading(async () => {
+      const buffer = await this.toBuffer();
+      triggerBrowserDownload(
+        buffer,
+        buildExcelFilename(this.reportName),
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+    }, 'Preparing Excel download…');
   }
 }
 
@@ -580,8 +583,10 @@ export class PdfBuilder {
   }
 
   async download(): Promise<void> {
-    const doc = await this.build();
-    doc.save(buildPdfFilename(this.reportName));
+    await withLoading(async () => {
+      const doc = await this.build();
+      doc.save(buildPdfFilename(this.reportName));
+    }, 'Preparing PDF download…');
   }
 }
 

@@ -21,6 +21,7 @@ interface Props {
   announcementId: number;
   canUpload: boolean;
   canDeleteRow: (att: AttachmentRecord) => boolean;
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -149,7 +150,7 @@ function AttachmentModal({ att, onClose }: { att: AttachmentRecord; onClose: () 
   );
 }
 
-export default function AttachmentsPanel({ announcementId, canUpload, canDeleteRow }: Props) {
+export default function AttachmentsPanel({ announcementId, canUpload, canDeleteRow, onUploadingChange }: Props) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -185,6 +186,7 @@ export default function AttachmentsPanel({ announcementId, canUpload, canDeleteR
     }
 
     setUploading(true);
+    onUploadingChange?.(true);
     try {
       setProgressMsg('Requesting upload URL…');
       const tokenRes = await fetch('/api/storage/uploads/request-url', {
@@ -233,6 +235,7 @@ export default function AttachmentsPanel({ announcementId, canUpload, canDeleteR
     } catch (err) {
       setError(getFriendlyErrorMessage(err, 'Upload failed. Please try again.'));
     } finally {
+      onUploadingChange?.(false);
       setUploading(false);
       setProgressMsg(null);
       if (fileInputRef.current) fileInputRef.current.value = '';

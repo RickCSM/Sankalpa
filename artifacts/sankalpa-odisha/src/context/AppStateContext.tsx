@@ -176,15 +176,15 @@ interface AppStateContextType {
   acceptAnnouncement: (id: number) => void;
   reconsiderAnnouncement: (id: number, comment: string) => Promise<void>;
   finalAcceptAnnouncement: (id: number) => void;
-  setAnnouncementStatus: (id: number, status: WorkflowStatus) => void;
+  setAnnouncementStatus: (id: number, status: WorkflowStatus, comment: string) => Promise<void>;
   dropAnnouncement: (id: number, remarks: string) => Promise<void>;
   holdAnnouncement: (id: number, remarks: string) => Promise<void>;
   resumeAnnouncement: (id: number, version: number) => Promise<void>;
   updateSubComponentAssignment: (id: number, assignedTo: number, assignedToName: string) => void;
-  requestCompletion: (id: number) => void;
-  reviewCompletion: (id: number, action: 'approve' | 'revert', comment: string) => void;
+  requestCompletion: (id: number, remarks: string) => Promise<void>;
+  reviewCompletion: (id: number, action: 'approve' | 'revert', comment: string) => Promise<void>;
   reviewCMOCompletion: (id: number, action: 'approve' | 'revert', comment: string) => void;
-  addSubComponent: (data: Omit<SubComponent, 'id'>) => void;
+  addSubComponent: (data: Omit<SubComponent, 'id'>) => Promise<void>;
   updateSubComponentStatus: (id: number, status: SubComponent['status']) => void;
   addUser: (data: Omit<MockUser, 'id'>) => Promise<void>;
   updateUser: (id: number, data: Partial<Omit<MockUser, 'id'>>) => Promise<void>;
@@ -533,32 +533,31 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // The legacy in-memory API exposed `setAnnouncementStatus(id, status)` but
   // every caller (and the UX) only ever uses it to flip an accepted item to
   // `in_progress`. Keep that single transition; ignore the rest.
-  const setAnnouncementStatus = (id: number, status: WorkflowStatus) => {
-    if (status !== 'in_progress') return;
+  const setAnnouncementStatus = async (id: number, status: WorkflowStatus, comment: string) => {
+    if (status !== 'in_progress') throw new Error('Unsupported announcement status transition.');
+    if (!comment.trim()) throw new Error('Please enter a comment before starting progress.');
     const version = versionFor(id);
-    if (version == null) return;
-    startProgressMutation.mutate(
-      { id, data: { version } },
-      { onSuccess: () => invalidateWorkflow(id) },
-    );
+    if (version == null) throw new Error('Refresh the announcement before starting progress.');
+    const result = await startProgressMutation.mutateAsync({ id, data: { version, comment: comment.trim() } });
+    if (result.announcement.workflowStatus !== 'in_progress') {
+      throw new Error('Progress was not started. Please refresh and try again.');
+    }
+    queryClient.setQueryData(getGetAnnouncementQueryKey(id), result);
+    invalidateWorkflow(id);
   };
 
-  const requestCompletion = (id: number) => {
+  const requestCompletion = async (id: number, remarks: string) => {
     const version = versionFor(id);
-    if (version == null) return;
-    requestCompletionMutation.mutate(
-      { id, data: { version } },
-      { onSuccess: () => invalidateWorkflow(id) },
-    );
+    if (version == null) throw new Error('Refresh the announcement before requesting completion.');
+    await requestCompletionMutation.mutateAsync({ id, data: { version, remarks } });
+    invalidateWorkflow(id);
   };
 
-  const reviewCompletion = (id: number, action: 'approve' | 'revert', comment: string) => {
+  const reviewCompletion = async (id: number, action: 'approve' | 'revert', comment: string) => {
     const version = versionFor(id);
-    if (version == null) return;
-    reviewCompletionMutation.mutate(
-      { id, data: { version, action, comment } },
-      { onSuccess: () => invalidateWorkflow(id) },
-    );
+    if (version == null) throw new Error('Refresh the announcement before reviewing completion.');
+    await reviewCompletionMutation.mutateAsync({ id, data: { version, action, comment } });
+    invalidateWorkflow(id);
   };
 
   const reviewCMOCompletion = (id: number, action: 'approve' | 'revert', comment: string) => {
@@ -571,8 +570,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   };
 
   // ---- Sub-components ---------------------------------------------------
-  const addSubComponent = (data: Omit<SubComponent, 'id'>) => {
-    createSubComponentMutation.mutate(
+  const addSubComponent = async (data: Omit<SubComponent, 'id'>) => {
+    await createSubComponentMutation.mutateAsync(
       {
         data: {
           announcementId: data.announcementId,
@@ -582,8 +581,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           status: data.status,
         },
       },
-      { onSuccess: () => invalidateWorkflow(data.announcementId) },
     );
+    invalidateWorkflow(data.announcementId);
   };
 
   const updateSubComponentAssignment = (id: number, assignedTo: number, _assignedToName: string) => {
@@ -612,6 +611,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         name: data.name,
         role: data.role,
         department: data.department ?? null,
+        ...(data.designationId !== undefined ? { designationId: data.designationId } : {}),
         email: data.email,
         mobile: data.mobile ?? null,
         status: data.status,
@@ -628,6 +628,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.role !== undefined ? { role: data.role } : {}),
         ...(data.department !== undefined ? { department: data.department ?? null } : {}),
+        ...(data.designationId !== undefined ? { designationId: data.designationId } : {}),
         ...(data.email !== undefined ? { email: data.email } : {}),
         ...(data.mobile !== undefined ? { mobile: data.mobile ?? null } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),

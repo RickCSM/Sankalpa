@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import {
   db,
   departmentsTable,
+  designationsTable,
   categoriesTable,
   tagsTable,
   districtsTable,
@@ -12,18 +13,11 @@ import {
 } from "@workspace/db";
 import { asyncHandler, HttpError } from "../lib/errors";
 import { requireAuth, requireRole } from "../lib/auth";
+import { masterNameSchema as nameSchema, masterPatchSchema as patchSchema, designationCreateSchema } from "../lib/masterDataValidation";
 
 const router: IRouter = Router();
 
 router.use(requireAuth);
-
-const nameSchema = z.object({ name: z.string().trim().min(1).max(200) });
-const patchSchema = z.object({
-  name: z.string().trim().min(1).max(200).optional(),
-  isActive: z.boolean().optional(),
-}).refine((v) => v.name !== undefined || v.isActive !== undefined, {
-  message: "At least one of `name` or `isActive` must be provided",
-});
 
 function pgErrorCode(err: unknown): string | undefined {
   if (typeof err !== "object" || err === null) return undefined;
@@ -153,6 +147,69 @@ router.delete(
     res.status(204).end();
   }),
 );
+
+// ---------- Designations (System Admin only) ----------
+
+router.get(
+  "/designations",
+  requireRole("admin"),
+  asyncHandler(async (_req, res) => {
+    const rows = await db.select().from(designationsTable).orderBy(designationsTable.name);
+    res.json({ designations: rows });
+  }),
+);
+
+router.post(
+  "/designations",
+  requireRole("admin"),
+  asyncHandler(async (req, res) => {
+    const { name, isActive } = designationCreateSchema.parse(req.body);
+    const inserted = await db.insert(designationsTable).values({ name, isActive })
+      .onConflictDoNothing({ target: designationsTable.name }).returning();
+    if (!inserted[0]) {
+      const [existing] = await db.select().from(designationsTable)
+        .where(eq(designationsTable.name, name)).limit(1);
+      res.status(200).json({ designation: existing });
+      return;
+    }
+    res.status(201).json({ designation: inserted[0] });
+  }),
+);
+
+router.patch(
+  "/designations/:id",
+  requireRole("admin"),
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const patch = patchSchema.parse(req.body);
+    try {
+      const [updated] = await db.update(designationsTable).set(patch)
+        .where(eq(designationsTable.id, id)).returning();
+      if (!updated) throw new HttpError(404, "Designation not found");
+      res.json({ designation: updated });
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new HttpError(409, "Designation name already exists");
+      throw err;
+    }
+  }),
+);
+
+router.delete(
+  "/designations/:id",
+  requireRole("admin"),
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const [updated] = await db.update(designationsTable).set({ isActive: false })
+      .where(eq(designationsTable.id, id)).returning({ id: designationsTable.id });
+    if (!updated) throw new HttpError(404, "Designation not found");
+    res.status(204).end();
+  }),
+);
+
+router.post("/designations/:id/hard-delete", requireRole("admin"), asyncHandler(async (req, res) => {
+  await hardDeleteOrThrow(designationsTable, parseId(req.params.id), "Designation");
+  res.status(204).end();
+}));
 
 // ---------- Categories ----------
 

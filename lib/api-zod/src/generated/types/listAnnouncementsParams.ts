@@ -16,6 +16,14 @@ export type ListAnnouncementsParams = {
   status?: string;
   department?: string;
   district?: string;
+  /**
+   * Exact occasion name; combined with other filters
+   */
+  occasion?: string;
+  /**
+   * Exact relevant tag contained in the announcement's tags; combined with other filters
+   */
+  tag?: string;
   dateFrom?: Date;
   dateTo?: Date;
   search?: string;
@@ -26,7 +34,7 @@ export type ListAnnouncementsParams = {
    */
   statusBeforeHold?: string;
   /**
-   * Column key to sort by (uniqueId, title, date, department, occasion, location, district, category, workflowStatus, createdBy, id)
+   * Column key to sort by (uniqueId, title, date, description, department, occasion, location, district, block, category, otherCategory, tags, workflowStatus, createdBy, id)
    */
   sortBy?: string;
   /**

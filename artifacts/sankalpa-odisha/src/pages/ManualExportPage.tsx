@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SECTIONS } from '@/components/manual/sections';
 import { ManualExportContext } from '@/components/manual/ManualExportContext';
 import { buildStandaloneHtml } from '@/components/manual/buildStandaloneHtml';
+import { beginLoading } from '@/lib/loading';
 
 const DOC_TITLE = 'Sankalpa Odisha — User Manual';
 
@@ -77,17 +78,20 @@ export default function ManualExportPage() {
   );
 
   const downloadPdf = async () => {
+    const finish = beginLoading('task', 'Preparing manual for printing…');
     setBusy('pdf');
     try {
       await waitForAssets(docRef.current);
       window.print();
     } finally {
+      finish();
       setBusy(null);
     }
   };
 
   const downloadHtml = async () => {
     if (!docRef.current) return;
+    const finish = beginLoading('task', 'Preparing manual download…');
     setBusy('html');
     try {
       await waitForAssets(docRef.current);
@@ -102,6 +106,7 @@ export default function ManualExportPage() {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } finally {
+      finish();
       setBusy(null);
     }
   };

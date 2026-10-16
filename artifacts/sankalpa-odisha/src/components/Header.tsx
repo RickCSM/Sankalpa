@@ -10,6 +10,7 @@ import { roleLabels, formatDateTime } from '@/data/mockData';
 import BrandImage from '@/components/BrandImage';
 import { profilePhotoUrl } from '@/lib/profilePhoto';
 import ProcedureGuideModal from '@/components/ProcedureGuideModal';
+import { locationReportPresentation } from '@/lib/locationReportPresentation';
 
 export default function Header() {
   const [, navigate] = useLocation();
@@ -148,6 +149,7 @@ export default function Header() {
                   <li><a className="dropdown-item" onClick={() => { navigate('/masters/blocks'); setMastersDropdown(false); }}>Blocks</a></li>
                   <li><a className="dropdown-item" onClick={() => { navigate('/masters/occasions'); setMastersDropdown(false); }}>Occasions</a></li>
                   <li><a className="dropdown-item" onClick={() => { navigate('/masters/departments'); setMastersDropdown(false); }}>Departments</a></li>
+                  <li><a className="dropdown-item" onClick={() => { navigate('/masters/designations'); setMastersDropdown(false); }}>Designation Master</a></li>
                   <li><a className="dropdown-item" onClick={() => { navigate('/masters/categories'); setMastersDropdown(false); }}>Categories</a></li>
                   <li><a className="dropdown-item" onClick={() => { navigate('/masters/tags'); setMastersDropdown(false); }}>Tags</a></li>
                 </ul>
@@ -159,7 +161,7 @@ export default function Header() {
                 <ul className={`dropdown-menu ${reportDropdown ? 'show' : ''}`}>
                   {can('view_reports') && (
                     <>
-                      <li><a className="dropdown-item" onClick={() => { navigate('/reports/location-wise'); setReportDropdown(false); }}>Location Wise Report</a></li>
+                      <li><a className="dropdown-item" onClick={() => { navigate('/reports/location-wise'); setReportDropdown(false); }}>{locationReportPresentation(user?.role).menuLabel}</a></li>
                       <li><a className="dropdown-item" onClick={() => { navigate('/reports/department-wise'); setReportDropdown(false); }}>Department Wise Report</a></li>
                       <li><a className="dropdown-item" onClick={() => { navigate('/reports/announcement-progress'); setReportDropdown(false); }}>Announcement & Progress Report</a></li>
                       <li><a className="dropdown-item" onClick={() => { navigate('/reports/occasion-wise'); setReportDropdown(false); }}>Occasion Wise Report</a></li>

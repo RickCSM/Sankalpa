@@ -588,6 +588,91 @@ paths:
         "404": { $ref: "#/components/responses/ErrorResponse" }
         "409": { $ref: "#/components/responses/ErrorResponse" }
 
+  /designations:
+    get:
+      operationId: listDesignations
+      tags: [master-data]
+      summary: List designations (System Admin only)
+      responses:
+        "200":
+          description: Designations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesignationListResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+    post:
+      operationId: createDesignation
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DesignationCreateRequest" }
+      responses:
+        "200":
+          description: Existing designation with the same name
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesignationResponse" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesignationResponse" }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+  /designations/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateDesignation
+      tags: [master-data]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterUpdateRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesignationResponse" }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
+    delete:
+      operationId: disableDesignation
+      tags: [master-data]
+      responses:
+        "204": { description: Designation marked inactive }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+  /designations/{id}/hard-delete:
+    post:
+      operationId: hardDeleteDesignation
+      tags: [master-data]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204": { description: Permanently deleted unreferenced designation }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
   /categories:
     get:
       operationId: listCategories
@@ -946,6 +1031,14 @@ paths:
           name: district
           schema: { type: string }
         - in: query
+          name: occasion
+          schema: { type: string }
+          description: Exact occasion name; combined with other filters
+        - in: query
+          name: tag
+          schema: { type: string }
+          description: Exact relevant tag contained in the announcement's tags; combined with other filters
+        - in: query
           name: dateFrom
           schema: { type: string, format: date }
         - in: query
@@ -967,7 +1060,7 @@ paths:
         - in: query
           name: sortBy
           schema: { type: string }
-          description: Column key to sort by (uniqueId, title, date, department, occasion, location, district, category, workflowStatus, createdBy, id)
+          description: Column key to sort by (uniqueId, title, date, description, department, occasion, location, district, block, category, otherCategory, tags, workflowStatus, createdBy, id)
         - in: query
           name: sortDir
           schema: { type: string, enum: [asc, desc] }
@@ -1183,13 +1276,14 @@ paths:
         schema: { type: integer }
     post:
       tags: [Announcements]
-      summary: Mark accepted announcement as in-progress
+      summary: Start progress on an accepted announcement with a mandatory comment
       operationId: startAnnouncementProgress
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/VersionRequest" } } }
+        content: { application/json: { schema: { $ref: "#/components/schemas/StartProgressRequest" } } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
         "401": { $ref: "#/components/responses/ErrorResponse" }
         "403": { $ref: "#/components/responses/ErrorResponse" }
         "409": { $ref: "#/components/responses/ErrorResponse" }
@@ -1205,7 +1299,7 @@ paths:
       operationId: requestAnnouncementCompletion
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/VersionRequest" } } }
+        content: { application/json: { schema: { $ref: "#/components/schemas/CompletionRequest" } } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
         "401": { $ref: "#/components/responses/ErrorResponse" }
@@ -1543,6 +1637,8 @@ components:
         - $ref: "#/components/schemas/SessionUser"
         - type: object
           properties:
+            designationId: { type: integer, nullable: true }
+            designation: { type: string, nullable: true }
             mobile:
               type: string
               nullable: true
@@ -1634,6 +1730,11 @@ components:
     CreateUserRequest:
       type: object
       properties:
+        designationId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Optional active designation ID; only System Admin may assign
         username: { type: string }
         password: { type: string }
         name: { type: string }
@@ -1650,6 +1751,11 @@ components:
     UpdateUserRequest:
       type: object
       properties:
+        designationId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: System Admin only; omit to preserve, null to clear, active ID to assign
         username: { type: string }
         name: { type: string }
         role: { $ref: "#/components/schemas/UserRole" }
@@ -1823,6 +1929,31 @@ components:
       properties:
         department: { $ref: "#/components/schemas/Department" }
       required: [department]
+    DesignationCreateRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        isActive: { type: boolean, default: true }
+      required: [name]
+    Designation:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        isActive: { type: boolean }
+      required: [id, name, isActive]
+    DesignationListResponse:
+      type: object
+      properties:
+        designations:
+          type: array
+          items: { $ref: "#/components/schemas/Designation" }
+      required: [designations]
+    DesignationResponse:
+      type: object
+      properties:
+        designation: { $ref: "#/components/schemas/Designation" }
+      required: [designation]
     Category:
       type: object
       properties:
@@ -2001,6 +2132,23 @@ components:
       properties:
         version: { type: integer }
       required: [version]
+    StartProgressRequest:
+      type: object
+      required: [version, comment]
+      properties:
+        version: { type: integer, minimum: 0 }
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: '\S'
+          description: Required nonblank start-progress comment, trimmed before saving.
+    CompletionRequest:
+      type: object
+      properties:
+        version: { type: integer, minimum: 0 }
+        remarks: { type: string, minLength: 1, maxLength: 2000 }
+      required: [version, remarks]
     ReviewRequest:
       type: object
       properties:

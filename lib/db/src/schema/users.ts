@@ -1,5 +1,6 @@
 import { pgTable, serial, text, timestamp, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { departmentsTable } from "./departments";
+import { designationsTable } from "./designations";
 
 // Per-account UI preferences that follow a user across devices/browsers.
 // Currently holds only the Chief Minister's "show/hide Notifications" choice,
@@ -39,6 +40,7 @@ export const usersTable = pgTable(
       onDelete: "restrict",
     }),
     email: text("email").notNull(),
+    designationId: integer("designation_id").references(() => designationsTable.id, { onDelete: "restrict" }),
     mobile: text("mobile"),
     // Normalized object-storage path to the user's uploaded profile photo,
     // e.g. "/objects/uploads/<uuid>". Null when the user has no photo, in
@@ -52,6 +54,7 @@ export const usersTable = pgTable(
   (t) => [
     index("users_role_idx").on(t.role),
     index("users_department_id_idx").on(t.departmentId),
+    index("users_designation_id_idx").on(t.designationId),
   ],
 );
 

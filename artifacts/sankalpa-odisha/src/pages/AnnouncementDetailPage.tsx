@@ -22,6 +22,9 @@ import { workflowStatusLabels, workflowStatusColors, roleLabels, formatDate, for
 import { useSortableTable } from '@/hooks/useSortableTable';
 import SortableHeader from '@/components/SortableHeader';
 import AttachmentsPanel from '@/components/AttachmentsPanel';
+import ClosureRequestDialog from '@/components/ClosureRequestDialog';
+import StartProgressDialog from '@/components/StartProgressDialog';
+import DepartmentCompletionReviewDialog from '@/components/DepartmentCompletionReviewDialog';
 import { useConfirmDialog } from '@/components/ConfirmDialog';
 
 function toLocalTimestamp(d: Date | string | null | undefined): string {
@@ -37,6 +40,7 @@ export default function AnnouncementDetailPage() {
   const [, navigate] = useLocation();
   const [match, params] = useRoute('/announcements/:id');
   const { user, can } = useAuth();
+  const queryClient = useQueryClient();
   const confirm = useConfirmDialog();
   // Mutation wrappers + users directory still come from AppState; lists are
   // now fetched per-id directly from the server (no global cache truncation).
@@ -47,8 +51,9 @@ export default function AnnouncementDetailPage() {
   const [reconsiderComment, setReconsiderComment] = useState('');
   const [reconsiderError, setReconsiderError] = useState('');
   const [reconsiderSubmitting, setReconsiderSubmitting] = useState(false);
-  const [showCompletionRevertForm, setShowCompletionRevertForm] = useState(false);
-  const [completionComment, setCompletionComment] = useState('');
+  const [showDepartmentReview, setShowDepartmentReview] = useState(false);
+  const [showClosureDialog, setShowClosureDialog] = useState(false);
+  const [showStartProgressDialog, setShowStartProgressDialog] = useState(false);
   const [showCMOCompletionRevertForm, setShowCMOCompletionRevertForm] = useState(false);
   const [cmoCompletionComment, setCMOCompletionComment] = useState('');
   const [showAddSub, setShowAddSub] = useState(false);
@@ -67,6 +72,10 @@ export default function AnnouncementDetailPage() {
     query: {
       queryKey: getGetAnnouncementQueryKey(announcementId),
       enabled: announcementId > 0,
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchInterval: 30_000,
     },
   });
   const commentsQuery = useListComments(
@@ -193,7 +202,12 @@ export default function AnnouncementDetailPage() {
   const canRequestCompletion = closureCardVisible && isAcceptingNodal && allSubsComplete;
   const canReviewCompletion = can('review_completion') && announcement.workflowStatus === 'pending_completion_review' && userInDept;
   const canCMOCompletionReview = can('review_announcement_cmo') && announcement.workflowStatus === 'pending_cmo_completion_review' && isAssignedReviewer;
-  const canAddSubComponent = can('add_sub_component') && ['accepted', 'in_progress', 'reverted_by_dept_reviewer'].includes(announcement.workflowStatus) && userInDept;
+  const canAddSubComponent = can('add_sub_component') && ['accepted', 'in_progress', 'reverted_by_dept_reviewer'].includes(announcement.workflowStatus) && userInDept &&
+    (user?.role !== 'dept_nodal' || announcement.workflowStatus === 'in_progress');
+  const showStartProgressSubNote = user?.role === 'dept_nodal' && userInDept &&
+    ['published', 'pending_dept_acceptance', 'accepted'].includes(announcement.workflowStatus);
+  const showExecutionSubNote = user?.role === 'dept_nodal' && userInDept &&
+    announcement.workflowStatus === 'reverted_by_dept_reviewer';
   // When the department user would otherwise be allowed to add sub-components
   // but the announcement is still awaiting Dept Reviewer final acceptance, we
   // surface an explanatory note in place of the Add button so users understand
@@ -232,8 +246,8 @@ export default function AnnouncementDetailPage() {
     return sc.assignedTo === user.id;
   };
   // Interim Updates: the tagged assignee (or admin) may post only after the
-  // Dept Nodal starts progress.  `accepted` is excluded — that is the Nodal's
-  // setup window.  Viewer roles never qualify.
+  // Dept Nodal starts progress. Acceptance alone does not authorize execution.
+  // Viewer roles never qualify.
   const remarkParentOk = SUB_EXECUTION_STATUSES.includes(announcement.workflowStatus);
   const canPostRemark = (sc: { assignedTo?: number; status: SubComponent['status'] }) => {
     if (!user || !remarkParentOk) return false;
@@ -318,7 +332,7 @@ export default function AnnouncementDetailPage() {
   const handleFinalAccept = () => {
     void confirm({
       title: 'Grant final acceptance?',
-      message: 'The announcement will move to In Progress. Sub-components can be added after this.',
+      message: 'The announcement will be accepted. The Department Nodal must then click Start Progress before adding sub-components.',
       confirmLabel: 'Yes, Grant Final Acceptance',
       variant: 'primary',
       onConfirm: async () => { await finalAcceptAnnouncement(announcementId); },
@@ -326,53 +340,11 @@ export default function AnnouncementDetailPage() {
   };
 
   const handleStartProgress = () => {
-    void confirm({
-      title: 'Start progress on this announcement?',
-      message: 'Status will change to In Progress so work on sub-components can begin.',
-      confirmLabel: 'Yes, Start Progress',
-      variant: 'primary',
-      onConfirm: async () => { await setAnnouncementStatus(announcementId, 'in_progress'); },
-    });
+    if (canStartProgress) setShowStartProgressDialog(true);
   };
 
   const handleRequestCompletion = () => {
-    void confirm({
-      title: 'Request completion review?',
-      message: 'The announcement will be submitted to the Department Reviewer for closure review.',
-      confirmLabel: 'Yes, Request Completion',
-      variant: 'primary',
-      onConfirm: async () => { await requestCompletion(announcementId); },
-    });
-  };
-
-  const handleApproveCompletion = () => {
-    void confirm({
-      title: 'Approve completion?',
-      message: 'This forwards the announcement to the CMO Reviewer for final sign-off.',
-      confirmLabel: 'Yes, Approve Completion',
-      variant: 'primary',
-      onConfirm: async () => {
-        await reviewCompletion(announcementId, 'approve', completionComment || 'Completion approved.');
-        setCompletionComment('');
-      },
-    });
-  };
-
-  const handleRevertCompletion = () => {
-    if (!completionComment.trim()) return;
-    const comment = completionComment;
-    void confirm({
-      title: 'Revert this completion request?',
-      message: 'The announcement will be returned to the accepting Dept Nodal with the remarks below.',
-      details: comment,
-      confirmLabel: 'Yes, Revert Completion',
-      variant: 'danger',
-      onConfirm: async () => {
-        await reviewCompletion(announcementId, 'revert', comment);
-        setCompletionComment('');
-        setShowCompletionRevertForm(false);
-      },
-    });
+    if (canRequestCompletion) setShowClosureDialog(true);
   };
 
   const handleApproveCMOCompletion = () => {
@@ -499,7 +471,11 @@ export default function AnnouncementDetailPage() {
     });
   };
 
-  const handleAddSubComponent = () => {
+  const handleAddSubComponent = async () => {
+    if (!canAddSubComponent) {
+      setSubTitleError('Please click Start Progress before adding a subcomponent.');
+      return;
+    }
     if (subForm.assignedTo === 0) {
       setAssignedToError('Please assign a user.');
       return;
@@ -511,16 +487,22 @@ export default function AnnouncementDetailPage() {
     }
     setSubTitleError('');
     const assignedUser = users.find(u => u.id === subForm.assignedTo);
-    addSubComponent({
-      announcementId,
-      title: subForm.title,
-      description: subForm.description,
-      assignedTo: subForm.assignedTo || undefined,
-      assignedToName: assignedUser?.name,
-      status: 'Pending',
-    });
-    setSubForm({ title: '', description: '', assignedTo: 0 });
-    setShowAddSub(false);
+    try {
+      await addSubComponent({
+        announcementId,
+        title: subForm.title,
+        description: subForm.description,
+        assignedTo: subForm.assignedTo || undefined,
+        assignedToName: assignedUser?.name,
+        status: 'Pending',
+      });
+      setSubForm({ title: '', description: '', assignedTo: 0 });
+      setShowAddSub(false);
+    } catch (error) {
+      setSubTitleError(getFriendlyErrorMessage(error, 'Unable to add the sub-component. Please try again.'));
+      // Refresh an out-of-date page after the API rejects a changed parent state.
+      void queryClient.invalidateQueries({ queryKey: getGetAnnouncementQueryKey(announcementId) });
+    }
   };
 
   return (
@@ -804,6 +786,12 @@ export default function AnnouncementDetailPage() {
               <div className="card-body">
                 <h5 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: '#1a3a5c' }}>Request Completion</h5>
                 <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Submit this announcement for completion review by the Department Reviewer.</p>
+                {showClosureDialog && canRequestCompletion && (
+                  <ClosureRequestDialog announcementId={announcement.id} userId={user.id}
+                    isAdmin={user.role === 'admin'}
+                    onSubmit={remarks => requestCompletion(announcementId, remarks)}
+                    onClose={() => setShowClosureDialog(false)} />
+                )}
                 {!canRequestCompletion && closureGateBlockedReason && (
                   <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#92400e' }}>
                     <i className="bi bi-exclamation-triangle" style={{ marginRight: 6 }}></i>{closureGateBlockedReason}.
@@ -828,26 +816,17 @@ export default function AnnouncementDetailPage() {
                 <h5 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: '#1a3a5c' }}>
                   <i className="bi bi-clipboard-check" style={{ marginRight: 8 }}></i>Completion Review
                 </h5>
-                <div className="form-group" style={{ marginBottom: 16 }}>
-                  <label>Comments</label>
-                  <textarea rows={3} maxLength={500} placeholder="Add review comments..." value={completionComment} onChange={e => setCompletionComment(e.target.value)} />
-                  <div style={{ textAlign: 'right', fontSize: 12, color: completionComment.length >= 450 ? '#e53e3e' : '#999', marginTop: 4 }}>{completionComment.length}/500</div>
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button className="btn-approve" onClick={handleApproveCompletion}>
-                    <i className="bi bi-check-lg" style={{ marginRight: 6 }}></i>Approve Completion
-                  </button>
-                  {!showCompletionRevertForm ? (
-                    <button className="btn-revert" onClick={() => setShowCompletionRevertForm(true)}>
-                      <i className="bi bi-arrow-counterclockwise" style={{ marginRight: 6 }}></i>Revert
-                    </button>
-                  ) : (
-                    <button className="btn-revert" onClick={handleRevertCompletion} disabled={!completionComment.trim()}>
-                      <i className="bi bi-arrow-counterclockwise" style={{ marginRight: 6 }}></i>
-                      {completionComment.trim() ? 'Confirm Revert' : 'Confirm Revert (comment required)'}
-                    </button>
-                  )}
-                </div>
+                <p>View the Nodal Officer’s request and supporting documents, then submit your review comments.</p>
+                <button className="btn-approve" disabled={commentsQuery.isLoading || subsQuery.isLoading || commentsQuery.isError || subsQuery.isError}
+                  onClick={() => setShowDepartmentReview(true)}>View &amp; Review Request</button>
+                {(commentsQuery.isError || subsQuery.isError) && <p role="alert">Unable to load request details. Please refresh and try again.</p>}
+                {showDepartmentReview && (
+                  <DepartmentCompletionReviewDialog announcement={announcement}
+                    request={[...announcementComments].reverse().find(comment => comment.action === 'Completion Requested')}
+                    subComponents={announcementSubs}
+                    onSubmit={(action, comment) => reviewCompletion(announcementId, action, comment)}
+                    onClose={() => setShowDepartmentReview(false)} />
+                )}
               </div>
             </div>
           )}
@@ -961,18 +940,23 @@ export default function AnnouncementDetailPage() {
             </div>
           )}
 
-          {(canAddSubComponent || canRetagSubs || showPreAcceptanceSubNote || announcementSubs.length > 0) && (
+          {(canAddSubComponent || canRetagSubs || showPreAcceptanceSubNote || showStartProgressSubNote || showExecutionSubNote || announcementSubs.length > 0) && (
             <div className="card" style={{ marginBottom: 20 }}>
               <div className="card-body">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <h5 style={{ fontSize: 16, fontWeight: 700, color: '#1a3a5c', margin: 0 }}>{canAddSubComponent ? 'Sub-Components (Add if Required)' : 'Sub-Components'}</h5>
-                  {canAddSubComponent && (
-                    <button className="btn-add" style={{ fontSize: 12, padding: '6px 14px' }} onClick={() => setShowAddSub(!showAddSub)}>
+                  {(canAddSubComponent || showStartProgressSubNote || showExecutionSubNote) && (
+                    <button className="btn-add" disabled={!canAddSubComponent}
+                      title={showStartProgressSubNote ? 'Please click Start Progress before adding a subcomponent.' : showExecutionSubNote ? 'Sub-components can only be added while the announcement is In Progress.' : undefined}
+                      style={{ fontSize: 12, padding: '6px 14px' }} onClick={() => { if (canAddSubComponent) setShowAddSub(!showAddSub); }}>
                       <i className="bi bi-plus-lg"></i> Add Sub-Component
                     </button>
                   )}
                 </div>
 
+                {(showStartProgressSubNote || showExecutionSubNote) && <p role="status" style={{ color: '#92400e', fontSize: 13 }}>
+                  {showStartProgressSubNote ? 'Please click Start Progress before adding a subcomponent.' : 'Sub-components can only be added while the announcement is In Progress.'}
+                </p>}
                 {showPreAcceptanceSubNote && !canAddSubComponent && (
                   <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                     <i className="bi bi-info-circle" style={{ marginTop: 2 }}></i>
@@ -980,7 +964,7 @@ export default function AnnouncementDetailPage() {
                   </div>
                 )}
 
-                {showAddSub && (
+                {showAddSub && canAddSubComponent && (
                   <div style={{ background: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 8, padding: 16, marginBottom: 16 }}>
                     <div className="form-grid">
                       <div className="form-group">
@@ -1158,6 +1142,12 @@ export default function AnnouncementDetailPage() {
                 <button className="btn-approve" onClick={handleStartProgress}>
                   <i className="bi bi-play-fill" style={{ marginRight: 6 }}></i>Start Progress
                 </button>
+                {showStartProgressDialog && (
+                  <StartProgressDialog announcementId={announcement.id} announcementTitle={announcement.title}
+                    userId={user!.id} isAdmin={user?.role === 'admin'}
+                    onSubmit={comment => setAnnouncementStatus(announcementId, 'in_progress', comment)}
+                    onClose={() => setShowStartProgressDialog(false)} />
+                )}
               </div>
             </div>
           )}

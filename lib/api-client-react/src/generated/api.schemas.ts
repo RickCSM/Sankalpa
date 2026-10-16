@@ -88,6 +88,8 @@ export interface LastPasswordChange {
 }
 
 export type PublicUser = SessionUser & {
+  designationId?: number | null;
+  designation?: string | null;
   mobile: string | null;
   status: UserStatus;
   lastPasswordChange: LastPasswordChange | null;
@@ -146,6 +148,11 @@ export interface UserPreferencesResponse {
 }
 
 export interface CreateUserRequest {
+  /**
+   * Optional active designation ID; only System Admin may assign
+   * @minimum 1
+   */
+  designationId?: number | null;
   username: string;
   password: string;
   name: string;
@@ -157,6 +164,11 @@ export interface CreateUserRequest {
 }
 
 export interface UpdateUserRequest {
+  /**
+   * System Admin only; omit to preserve, null to clear, active ID to assign
+   * @minimum 1
+   */
+  designationId?: number | null;
   username?: string;
   name?: string;
   role?: UserRole;
@@ -291,6 +303,29 @@ export interface DepartmentListResponse {
 
 export interface DepartmentResponse {
   department: Department;
+}
+
+export interface DesignationCreateRequest {
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  name: string;
+  isActive?: boolean;
+}
+
+export interface Designation {
+  id: number;
+  name: string;
+  isActive: boolean;
+}
+
+export interface DesignationListResponse {
+  designations: Designation[];
+}
+
+export interface DesignationResponse {
+  designation: Designation;
 }
 
 export interface Category {
@@ -444,6 +479,28 @@ export interface UpdateAnnouncementRequest {
 
 export interface VersionRequest {
   version: number;
+}
+
+export interface StartProgressRequest {
+  /** @minimum 0 */
+  version: number;
+  /**
+   * Required nonblank start-progress comment, trimmed before saving.
+   * @minLength 1
+   * @maxLength 2000
+   * @pattern \S
+   */
+  comment: string;
+}
+
+export interface CompletionRequest {
+  /** @minimum 0 */
+  version: number;
+  /**
+   * @minLength 1
+   * @maxLength 2000
+   */
+  remarks: string;
 }
 
 export type ReviewRequestAction =
@@ -819,6 +876,14 @@ export type ListAnnouncementsParams = {
   status?: string;
   department?: string;
   district?: string;
+  /**
+   * Exact occasion name; combined with other filters
+   */
+  occasion?: string;
+  /**
+   * Exact relevant tag contained in the announcement's tags; combined with other filters
+   */
+  tag?: string;
   dateFrom?: string;
   dateTo?: string;
   search?: string;
@@ -829,7 +894,7 @@ export type ListAnnouncementsParams = {
    */
   statusBeforeHold?: string;
   /**
-   * Column key to sort by (uniqueId, title, date, department, occasion, location, district, category, workflowStatus, createdBy, id)
+   * Column key to sort by (uniqueId, title, date, description, department, occasion, location, district, block, category, otherCategory, tags, workflowStatus, createdBy, id)
    */
   sortBy?: string;
   /**

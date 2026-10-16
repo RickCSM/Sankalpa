@@ -1,0 +1,32 @@
+.app-loading-boundary { display: contents; margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.app-working, .app-working * { cursor: progress !important; }
+.app-saving, .app-saving * { cursor: wait !important; }
+.app-loading-layer {
+  position: fixed; inset: 0; z-index: 2147483000; display: flex;
+  align-items: center; justify-content: center; pointer-events: none; padding: 16px;
+}
+.app-loading-layer.is-blocking { background: rgb(15 30 50 / 28%); pointer-events: auto; }
+.app-loading-status {
+  display: flex; align-items: center; gap: 14px; padding: 20px 26px;
+  max-width: min(420px, 90vw); border: 1px solid #dde4eb; border-radius: 12px;
+  color: #1a3a5c; background: #fff; box-shadow: 0 8px 30px rgb(0 0 0 / 16%);
+  font-family: inherit; font-size: 15px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere;
+}
+.app-loading-spinner {
+  width: 30px; height: 30px; flex: 0 0 30px; border: 3px solid #e3e9ef;
+  border-top-color: #c57b51; border-radius: 50%; animation: app-loading-spin .85s linear infinite;
+}
+.app-loading-layer.is-background { align-items: flex-end; justify-content: flex-end; }
+.is-background .app-loading-status { padding: 10px 14px; font-size: 13px; }
+.is-background .app-loading-spinner { width: 18px; height: 18px; flex-basis: 18px; }
+.app-operation-notice {
+  position: fixed; right: 18px; top: 18px; z-index: 2147483100;
+  display: flex; align-items: center; gap: 12px; max-width: min(520px, calc(100vw - 36px));
+  padding: 14px 18px; background: #f0fff4; color: #215b38; border: 1px solid #a6d4b3;
+  border-radius: 8px; box-shadow: 0 4px 18px rgb(0 0 0 / 15%); overflow-wrap: anywhere;
+}
+.app-operation-notice.is-error { background: #fff5f5; color: #9b2929; border-color: #e5b5b5; }
+.app-operation-notice button { border: 0; background: transparent; color: inherit; cursor: pointer; text-decoration: underline; flex-shrink: 0; }
+@keyframes app-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .app-loading-spinner { animation: none; border-style: dotted; } }
+@media print { .app-loading-layer, .app-operation-notice { display: none !important; } }

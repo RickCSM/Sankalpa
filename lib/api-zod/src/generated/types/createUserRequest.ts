@@ -9,6 +9,11 @@ import type { UserRole } from "./userRole";
 import type { UserStatus } from "./userStatus";
 
 export interface CreateUserRequest {
+  /**
+   * Optional active designation ID; only System Admin may assign
+   * @minimum 1
+   */
+  designationId?: number | null;
   username: string;
   password: string;
   name: string;

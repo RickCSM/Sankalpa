@@ -9,6 +9,10 @@ import {
   useListDepartments,
   useCreateDepartment,
   useUpdateDepartment,
+  useListDesignations,
+  useCreateDesignation,
+  useUpdateDesignation,
+  getListDesignationsQueryKey,
   useListCategories,
   useCreateCategory,
   useUpdateCategory,
@@ -32,7 +36,7 @@ import {
   getListOccasionsQueryKey,
 } from '@workspace/api-client-react';
 
-type Entity = 'districts' | 'blocks' | 'occasions' | 'departments' | 'categories' | 'tags';
+type Entity = 'districts' | 'blocks' | 'occasions' | 'departments' | 'designations' | 'categories' | 'tags';
 
 interface Row {
   id: number;
@@ -46,11 +50,12 @@ const ENTITY_META: Record<Entity, { title: string; singular: string; icon: strin
   blocks:      { title: 'Blocks',      singular: 'Block',      icon: 'bi-grid-3x3-gap-fill',  description: 'Blocks within each district' },
   occasions:   { title: 'Occasions',   singular: 'Occasion',   icon: 'bi-calendar-event-fill', description: 'Event types for announcements and UOI notes' },
   departments: { title: 'Departments', singular: 'Department', icon: 'bi-building-fill',       description: 'Government departments issuing announcements' },
+  designations: { title: 'Designation Master', singular: 'Designation', icon: 'bi-person-badge-fill', description: 'Manage designation names and their active or inactive status' },
   categories:  { title: 'Categories',  singular: 'Category',   icon: 'bi-folder-fill',         description: 'Content categories for announcements' },
   tags:        { title: 'Tags',        singular: 'Tag',        icon: 'bi-tags-fill',           description: 'Keywords and labels for filtering content' },
 };
 
-const ENTITY_TABS: Entity[] = ['districts', 'blocks', 'occasions', 'departments', 'categories', 'tags'];
+const ENTITY_TABS: Entity[] = ['districts', 'blocks', 'occasions', 'departments', 'designations', 'categories', 'tags'];
 
 function extractMessage(err: unknown, fallback: string): string {
   return getFriendlyErrorMessage(err, fallback);
@@ -109,7 +114,7 @@ export default function MastersPage() {
           <div className="masters-panel-body">
             {entity === 'blocks'
               ? <BlocksPanel canManage={canManage} />
-              : <SimpleMasterPanel entity={entity} canManage={canManage} />}
+              : <SimpleMasterPanel key={entity} entity={entity} canManage={canManage} />}
           </div>
         </div>
       </div>
@@ -121,8 +126,10 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
   const qc = useQueryClient();
   const confirm = useConfirmDialog();
   const [newName, setNewName] = useState('');
+  const [newIsActive, setNewIsActive] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
+  const [editIsActive, setEditIsActive] = useState(true);
   const [error, setError] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState('');
@@ -174,8 +181,10 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
     const name = newName.trim();
     if (!name) { setError('Name is required'); return; }
     try {
-      await createMut.mutateAsync({ data: { name } } as any);
+      await createMut.mutateAsync({ data: { name, ...(entity === 'designations' ? { isActive: newIsActive } : {}) } } as any);
+      if (entity === 'designations' && !newIsActive) setShowInactive(true);
       setNewName('');
+      setNewIsActive(true);
       setError('');
       invalidate();
     } catch (err) {
@@ -183,14 +192,16 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
     }
   };
 
-  const startEdit = (r: Row) => { setEditingId(r.id); setEditName(r.name); setError(''); };
+  const startEdit = (r: Row) => { setEditingId(r.id); setEditName(r.name); setEditIsActive(r.isActive); setError(''); };
   const cancelEdit = () => { setEditingId(null); setEditName(''); };
 
   const saveEdit = async (id: number) => {
     const name = editName.trim();
     if (!name) { setError('Name is required'); return; }
     try {
-      await updateMut.mutateAsync({ id, data: { name } } as any);
+      await updateMut.mutateAsync({ id, data: { name, ...(entity === 'designations' ? { isActive: editIsActive } : {}) } } as any);
+      if (entity === 'designations' && !editIsActive) setShowInactive(true);
+      setError('');
       cancelEdit();
       invalidate();
     } catch (err) {
@@ -217,6 +228,7 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
   };
 
   const singular = ENTITY_META[entity].singular.toLowerCase();
+  const plural = entity === 'designations' ? 'designations' : ENTITY_META[entity].title.toLowerCase();
 
   return (
     <div>
@@ -254,14 +266,25 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
       {/* Toolbar */}
       <div className="masters-toolbar">
         {canManage && (
-          <div className="masters-add-row">
+          <div className="masters-add-row" style={entity === 'designations' ? { flexWrap: 'wrap' } : undefined}>
             <input
               className="masters-add-input"
               placeholder={`New ${singular} name…`}
+              aria-label={entity === 'designations' ? 'Designation Name' : undefined}
+              required={entity === 'designations'}
+              maxLength={entity === 'designations' ? 200 : undefined}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
             />
+            {entity === 'designations' && (
+              <select className="masters-add-input" style={{ maxWidth: 140 }} aria-label="Designation Status"
+                value={newIsActive ? 'active' : 'inactive'} onChange={e => setNewIsActive(e.target.value === 'active')}
+                disabled={createMut.isPending}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            )}
             <button
               className="btn btn-primary masters-add-btn"
               onClick={handleAdd}
@@ -278,7 +301,7 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
             <i className="bi bi-search table-search-icon"></i>
             <input
               className="table-search-input"
-              placeholder={`Search ${ENTITY_META[entity].title.toLowerCase()}…`}
+              placeholder={`Search ${plural}…`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -296,13 +319,13 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
               onChange={(e) => setShowInactive(e.target.checked)}
               className="masters-toggle-check"
             />
-            Show disabled
+            {entity === 'designations' ? 'Show inactive' : 'Show disabled'}
           </label>
 
           <div className="masters-counts">
             <span className="masters-count-pill active">{activeCount} active</span>
             {rows.length - activeCount > 0 && (
-              <span className="masters-count-pill inactive">{rows.length - activeCount} disabled</span>
+              <span className="masters-count-pill inactive">{rows.length - activeCount} {entity === 'designations' ? 'inactive' : 'disabled'}</span>
             )}
           </div>
         </div>
@@ -326,7 +349,7 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
         <div className="masters-empty">
           <i className={`bi ${ENTITY_META[entity].icon} masters-empty-icon`}></i>
           <div className="masters-empty-title">
-            {search ? `No results for "${search}"` : `No ${ENTITY_META[entity].title.toLowerCase()} yet`}
+            {search ? `No results for "${search}"` : `No ${plural} yet`}
           </div>
           {!search && canManage && (
             <div className="masters-empty-hint">Add your first {singular} using the field above.</div>
@@ -342,7 +365,7 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
                 style={{ cursor: 'pointer', userSelect: 'none' }}
                 onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
               >
-                Name
+                {entity === 'designations' ? 'Designation Name' : 'Name'}
                 <i className={`bi ${sortDir === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'} ms-1`} style={{ fontSize: 11 }}></i>
               </th>
               <th style={{ width: 110 }}>Status</th>
@@ -354,9 +377,11 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
               <tr key={r.id} className={!r.isActive ? 'masters-row-disabled' : ''}>
                 <td className="masters-idx">{i + 1}</td>
                 <td>
-                  {editingId === r.id ? (
+                  {editingId === r.id ? (<>
                     <input
                       className="masters-inline-input"
+                      aria-label={entity === 'designations' ? 'Edit Designation Name' : undefined}
+                      maxLength={entity === 'designations' ? 200 : undefined}
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       onKeyDown={(e) => {
@@ -365,6 +390,15 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
                       }}
                       autoFocus
                     />
+                    {entity === 'designations' && (
+                      <select className="masters-inline-input" style={{ marginTop: 6, maxWidth: 140 }} aria-label="Edit Designation Status"
+                        value={editIsActive ? 'active' : 'inactive'} onChange={e => setEditIsActive(e.target.value === 'active')}
+                        disabled={updateMut.isPending}>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    )}
+                  </>
                   ) : (
                     <span className="masters-name">{r.name}</span>
                   )}
@@ -372,7 +406,7 @@ function SimpleMasterPanel({ entity, canManage }: { entity: Exclude<Entity, 'blo
                 <td>
                   <span className={`masters-status-badge ${r.isActive ? 'active' : 'disabled'}`}>
                     <i className={`bi ${r.isActive ? 'bi-check-circle-fill' : 'bi-slash-circle'}`}></i>
-                    {r.isActive ? 'Active' : 'Disabled'}
+                    {r.isActive ? 'Active' : entity === 'designations' ? 'Inactive' : 'Disabled'}
                   </span>
                 </td>
                 {canManage && (
@@ -732,6 +766,13 @@ function useEntityHooks(entity: Exclude<Entity, 'blocks'>) {
         useCreate: () => useCreateDepartment(),
         useUpdate: () => useUpdateDepartment(),
         listKey: () => getListDepartmentsQueryKey(),
+      };
+    case 'designations':
+      return {
+        useList: () => useListDesignations({ query: { queryKey: getListDesignationsQueryKey() } }),
+        useCreate: () => useCreateDesignation(),
+        useUpdate: () => useUpdateDesignation(),
+        listKey: () => getListDesignationsQueryKey(),
       };
     case 'categories':
       return {

@@ -6,6 +6,7 @@ import {
   db,
   usersTable,
   departmentsTable,
+  designationsTable,
   auditLogTable,
   subComponentsTable,
   announcementsTable,
@@ -17,6 +18,7 @@ import { requireAuth, type SessionUser } from "../lib/auth";
 import { writeAudit, markAudited, auditCtx } from "../lib/audit";
 import { loadForUpdate, addComment, notify } from "../lib/workflow";
 import crypto from "node:crypto";
+import { userDesignationIdSchema, validateUserDesignation } from "../lib/userDesignation";
 
 const router: IRouter = Router();
 
@@ -24,6 +26,7 @@ const roleEnum = z.enum(userRoles);
 const statusEnum = z.enum(["Active", "Inactive"]);
 
 const baseUserShape = {
+  designationId: userDesignationIdSchema,
   username: z.string().trim().min(2).max(120),
   name: z.string().trim().min(1).max(200),
   role: roleEnum,
@@ -34,7 +37,8 @@ const baseUserShape = {
     .trim()
     .regex(/^\d{10}$/, "Mobile number must be exactly 10 digits")
     .optional()
-    .or(z.literal("").transform(() => undefined)),
+    .or(z.literal("").transform(() => undefined))
+    .nullable(),
   status: statusEnum.optional(),
 };
 
@@ -103,6 +107,8 @@ interface PublicUser {
   name: string;
   role: UserRole;
   department: string | null;
+  designationId: number | null;
+  designation: string | null;
   email: string;
   mobile: string | null;
   status: "Active" | "Inactive";
@@ -116,6 +122,8 @@ interface UserRow {
   role: UserRole;
   departmentId: number | null;
   departmentName: string | null;
+  designationId: number | null;
+  designationName: string | null;
   email: string;
   mobile: string | null;
   status: "Active" | "Inactive";
@@ -132,6 +140,8 @@ function toPublic(
     name: u.name,
     role: u.role,
     department: u.departmentName,
+    designationId: u.designationId,
+    designation: u.designationName,
     // PII (email/mobile) is only exposed to user-administering roles.
     email: includePII ? u.email : "",
     mobile: includePII ? u.mobile : null,
@@ -196,12 +206,26 @@ function selectUserWithDept() {
       role: usersTable.role,
       departmentId: usersTable.departmentId,
       departmentName: departmentsTable.name,
+      designationId: usersTable.designationId,
+      designationName: designationsTable.name,
       email: usersTable.email,
       mobile: usersTable.mobile,
       status: usersTable.status,
     })
     .from(usersTable)
-    .leftJoin(departmentsTable, eq(usersTable.departmentId, departmentsTable.id));
+    .leftJoin(departmentsTable, eq(usersTable.departmentId, departmentsTable.id))
+    .leftJoin(designationsTable, eq(usersTable.designationId, designationsTable.id));
+}
+
+async function resolveUserDesignation(
+  actorRole: string, selection: number | null | undefined, currentId?: number | null,
+) {
+  if (selection == null || actorRole !== "admin") {
+    return validateUserDesignation(actorRole, selection, currentId);
+  }
+  const [designation] = await db.select({ id: designationsTable.id, isActive: designationsTable.isActive })
+    .from(designationsTable).where(eq(designationsTable.id, selection)).limit(1);
+  return validateUserDesignation(actorRole, selection, currentId, designation);
 }
 
 async function resolveDepartmentId(name: string | null): Promise<number | null> {
@@ -355,6 +379,7 @@ router.post(
       throw new HttpError(409, "Username already exists");
     }
 
+    const designationId = await resolveUserDesignation(actor.role, data.designationId);
     const passwordHash = await bcrypt.hash(data.password, 10);
     const inserted = await db
       .insert(usersTable)
@@ -364,6 +389,7 @@ router.post(
         name: data.name,
         role,
         departmentId,
+        designationId: designationId ?? null,
         email: data.email,
         mobile: data.mobile ?? null,
         status: data.status ?? "Active",
@@ -394,6 +420,7 @@ router.patch(
     }
 
     const data = updateUserSchema.parse(req.body);
+    const designationId = await resolveUserDesignation(actor.role, data.designationId, target.designationId);
 
     // Block deactivation while the user still holds pending (non-Completed)
     // sub-components. The client offers a reassignment flow first; this guard
@@ -458,6 +485,7 @@ router.patch(
     if (data.email) update.email = data.email;
     if (data.mobile !== undefined) update.mobile = data.mobile ?? null;
     if (data.status) update.status = data.status;
+    if (designationId !== undefined) update.designationId = designationId;
 
     await db.update(usersTable).set(update).where(eq(usersTable.id, id));
     const fresh = (await selectUserWithDept().where(eq(usersTable.id, id)).limit(1)) as UserRow[];

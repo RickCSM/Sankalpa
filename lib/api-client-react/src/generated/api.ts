@@ -30,6 +30,7 @@ import type {
   CategoryResponse,
   ChangePasswordRequest,
   CommentListResponse,
+  CompletionRequest,
   CreateAnnouncementRequest,
   CreateSubComponent201,
   CreateSubComponentRemark201,
@@ -39,6 +40,9 @@ import type {
   CreateUserRequest,
   DepartmentListResponse,
   DepartmentResponse,
+  DesignationCreateRequest,
+  DesignationListResponse,
+  DesignationResponse,
   DirectoryListResponse,
   DistrictListResponse,
   DistrictResponse,
@@ -71,6 +75,7 @@ import type {
   ResetUserPasswordResponse,
   ReviewRequest,
   SetProfilePhotoRequest,
+  StartProgressRequest,
   SubComponentListResponse,
   SubComponentRemarkListResponse,
   TagListResponse,
@@ -2719,6 +2724,399 @@ export const useDeleteDepartment = <
   TContext
 > => {
   return useMutation(getDeleteDepartmentMutationOptions(options));
+};
+
+/**
+ * @summary List designations (System Admin only)
+ */
+export const getListDesignationsUrl = () => {
+  return `/api/designations`;
+};
+
+export const listDesignations = async (
+  options?: RequestInit,
+): Promise<DesignationListResponse> => {
+  return customFetch<DesignationListResponse>(getListDesignationsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDesignationsQueryKey = () => {
+  return [`/api/designations`] as const;
+};
+
+export const getListDesignationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDesignations>>,
+  TError = ErrorType<ErrorResponseResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDesignations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDesignationsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDesignations>>
+  > = ({ signal }) => listDesignations({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDesignations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDesignationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDesignations>>
+>;
+export type ListDesignationsQueryError = ErrorType<ErrorResponseResponse>;
+
+/**
+ * @summary List designations (System Admin only)
+ */
+
+export function useListDesignations<
+  TData = Awaited<ReturnType<typeof listDesignations>>,
+  TError = ErrorType<ErrorResponseResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDesignations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDesignationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getCreateDesignationUrl = () => {
+  return `/api/designations`;
+};
+
+export const createDesignation = async (
+  designationCreateRequest: DesignationCreateRequest,
+  options?: RequestInit,
+): Promise<DesignationResponse> => {
+  return customFetch<DesignationResponse>(getCreateDesignationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(designationCreateRequest),
+  });
+};
+
+export const getCreateDesignationMutationOptions = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDesignation>>,
+    TError,
+    { data: BodyType<DesignationCreateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createDesignation>>,
+  TError,
+  { data: BodyType<DesignationCreateRequest> },
+  TContext
+> => {
+  const mutationKey = ["createDesignation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createDesignation>>,
+    { data: BodyType<DesignationCreateRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createDesignation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateDesignationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createDesignation>>
+>;
+export type CreateDesignationMutationBody = BodyType<DesignationCreateRequest>;
+export type CreateDesignationMutationError = ErrorType<ErrorResponseResponse>;
+
+export const useCreateDesignation = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDesignation>>,
+    TError,
+    { data: BodyType<DesignationCreateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createDesignation>>,
+  TError,
+  { data: BodyType<DesignationCreateRequest> },
+  TContext
+> => {
+  return useMutation(getCreateDesignationMutationOptions(options));
+};
+
+export const getUpdateDesignationUrl = (id: number) => {
+  return `/api/designations/${id}`;
+};
+
+export const updateDesignation = async (
+  id: number,
+  masterUpdateRequest: MasterUpdateRequest,
+  options?: RequestInit,
+): Promise<DesignationResponse> => {
+  return customFetch<DesignationResponse>(getUpdateDesignationUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(masterUpdateRequest),
+  });
+};
+
+export const getUpdateDesignationMutationOptions = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateDesignation>>,
+    TError,
+    { id: number; data: BodyType<MasterUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateDesignation>>,
+  TError,
+  { id: number; data: BodyType<MasterUpdateRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateDesignation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateDesignation>>,
+    { id: number; data: BodyType<MasterUpdateRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateDesignation(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateDesignationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateDesignation>>
+>;
+export type UpdateDesignationMutationBody = BodyType<MasterUpdateRequest>;
+export type UpdateDesignationMutationError = ErrorType<ErrorResponseResponse>;
+
+export const useUpdateDesignation = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateDesignation>>,
+    TError,
+    { id: number; data: BodyType<MasterUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateDesignation>>,
+  TError,
+  { id: number; data: BodyType<MasterUpdateRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateDesignationMutationOptions(options));
+};
+
+export const getDisableDesignationUrl = (id: number) => {
+  return `/api/designations/${id}`;
+};
+
+export const disableDesignation = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDisableDesignationUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDisableDesignationMutationOptions = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disableDesignation>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof disableDesignation>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["disableDesignation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof disableDesignation>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return disableDesignation(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DisableDesignationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof disableDesignation>>
+>;
+
+export type DisableDesignationMutationError = ErrorType<ErrorResponseResponse>;
+
+export const useDisableDesignation = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disableDesignation>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof disableDesignation>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDisableDesignationMutationOptions(options));
+};
+
+export const getHardDeleteDesignationUrl = (id: number) => {
+  return `/api/designations/${id}/hard-delete`;
+};
+
+export const hardDeleteDesignation = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getHardDeleteDesignationUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getHardDeleteDesignationMutationOptions = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof hardDeleteDesignation>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof hardDeleteDesignation>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["hardDeleteDesignation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof hardDeleteDesignation>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return hardDeleteDesignation(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type HardDeleteDesignationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof hardDeleteDesignation>>
+>;
+
+export type HardDeleteDesignationMutationError =
+  ErrorType<ErrorResponseResponse>;
+
+export const useHardDeleteDesignation = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof hardDeleteDesignation>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof hardDeleteDesignation>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getHardDeleteDesignationMutationOptions(options));
 };
 
 export const getListCategoriesUrl = () => {
@@ -5412,7 +5810,7 @@ export const useResumeAnnouncement = <
 };
 
 /**
- * @summary Mark accepted announcement as in-progress
+ * @summary Start progress on an accepted announcement with a mandatory comment
  */
 export const getStartAnnouncementProgressUrl = (id: number) => {
   return `/api/announcements/${id}/start-progress`;
@@ -5420,7 +5818,7 @@ export const getStartAnnouncementProgressUrl = (id: number) => {
 
 export const startAnnouncementProgress = async (
   id: number,
-  versionRequest: VersionRequest,
+  startProgressRequest: StartProgressRequest,
   options?: RequestInit,
 ): Promise<AnnouncementResponse> => {
   return customFetch<AnnouncementResponse>(
@@ -5429,7 +5827,7 @@ export const startAnnouncementProgress = async (
       ...options,
       method: "POST",
       headers: { "Content-Type": "application/json", ...options?.headers },
-      body: JSON.stringify(versionRequest),
+      body: JSON.stringify(startProgressRequest),
     },
   );
 };
@@ -5441,14 +5839,14 @@ export const getStartAnnouncementProgressMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof startAnnouncementProgress>>,
     TError,
-    { id: number; data: BodyType<VersionRequest> },
+    { id: number; data: BodyType<StartProgressRequest> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof startAnnouncementProgress>>,
   TError,
-  { id: number; data: BodyType<VersionRequest> },
+  { id: number; data: BodyType<StartProgressRequest> },
   TContext
 > => {
   const mutationKey = ["startAnnouncementProgress"];
@@ -5462,7 +5860,7 @@ export const getStartAnnouncementProgressMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof startAnnouncementProgress>>,
-    { id: number; data: BodyType<VersionRequest> }
+    { id: number; data: BodyType<StartProgressRequest> }
   > = (props) => {
     const { id, data } = props ?? {};
 
@@ -5475,12 +5873,13 @@ export const getStartAnnouncementProgressMutationOptions = <
 export type StartAnnouncementProgressMutationResult = NonNullable<
   Awaited<ReturnType<typeof startAnnouncementProgress>>
 >;
-export type StartAnnouncementProgressMutationBody = BodyType<VersionRequest>;
+export type StartAnnouncementProgressMutationBody =
+  BodyType<StartProgressRequest>;
 export type StartAnnouncementProgressMutationError =
   ErrorType<ErrorResponseResponse>;
 
 /**
- * @summary Mark accepted announcement as in-progress
+ * @summary Start progress on an accepted announcement with a mandatory comment
  */
 export const useStartAnnouncementProgress = <
   TError = ErrorType<ErrorResponseResponse>,
@@ -5489,14 +5888,14 @@ export const useStartAnnouncementProgress = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof startAnnouncementProgress>>,
     TError,
-    { id: number; data: BodyType<VersionRequest> },
+    { id: number; data: BodyType<StartProgressRequest> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof startAnnouncementProgress>>,
   TError,
-  { id: number; data: BodyType<VersionRequest> },
+  { id: number; data: BodyType<StartProgressRequest> },
   TContext
 > => {
   return useMutation(getStartAnnouncementProgressMutationOptions(options));
@@ -5511,7 +5910,7 @@ export const getRequestAnnouncementCompletionUrl = (id: number) => {
 
 export const requestAnnouncementCompletion = async (
   id: number,
-  versionRequest: VersionRequest,
+  completionRequest: CompletionRequest,
   options?: RequestInit,
 ): Promise<AnnouncementResponse> => {
   return customFetch<AnnouncementResponse>(
@@ -5520,7 +5919,7 @@ export const requestAnnouncementCompletion = async (
       ...options,
       method: "POST",
       headers: { "Content-Type": "application/json", ...options?.headers },
-      body: JSON.stringify(versionRequest),
+      body: JSON.stringify(completionRequest),
     },
   );
 };
@@ -5532,14 +5931,14 @@ export const getRequestAnnouncementCompletionMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof requestAnnouncementCompletion>>,
     TError,
-    { id: number; data: BodyType<VersionRequest> },
+    { id: number; data: BodyType<CompletionRequest> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof requestAnnouncementCompletion>>,
   TError,
-  { id: number; data: BodyType<VersionRequest> },
+  { id: number; data: BodyType<CompletionRequest> },
   TContext
 > => {
   const mutationKey = ["requestAnnouncementCompletion"];
@@ -5553,7 +5952,7 @@ export const getRequestAnnouncementCompletionMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof requestAnnouncementCompletion>>,
-    { id: number; data: BodyType<VersionRequest> }
+    { id: number; data: BodyType<CompletionRequest> }
   > = (props) => {
     const { id, data } = props ?? {};
 
@@ -5567,7 +5966,7 @@ export type RequestAnnouncementCompletionMutationResult = NonNullable<
   Awaited<ReturnType<typeof requestAnnouncementCompletion>>
 >;
 export type RequestAnnouncementCompletionMutationBody =
-  BodyType<VersionRequest>;
+  BodyType<CompletionRequest>;
 export type RequestAnnouncementCompletionMutationError =
   ErrorType<ErrorResponseResponse>;
 
@@ -5581,14 +5980,14 @@ export const useRequestAnnouncementCompletion = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof requestAnnouncementCompletion>>,
     TError,
-    { id: number; data: BodyType<VersionRequest> },
+    { id: number; data: BodyType<CompletionRequest> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof requestAnnouncementCompletion>>,
   TError,
-  { id: number; data: BodyType<VersionRequest> },
+  { id: number; data: BodyType<CompletionRequest> },
   TContext
 > => {
   return useMutation(getRequestAnnouncementCompletionMutationOptions(options));

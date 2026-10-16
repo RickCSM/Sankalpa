@@ -1,11 +1,13 @@
 import { useLocation } from 'wouter';
 import { useNavHistory } from '@/context/NavHistory';
 import { buildBreadcrumbs, getSequence, sequenceLabel } from '@/lib/breadcrumbs';
+import { useAuth } from '@/context/AuthContext';
 
 export default function PageNav({ variant = 'top' }: { variant?: 'top' | 'bottom' }) {
   const [location, navigate] = useLocation();
   const { goBack } = useNavHistory();
-  const crumbs = buildBreadcrumbs(location);
+  const { user } = useAuth();
+  const crumbs = buildBreadcrumbs(location, user?.role);
   const seq = getSequence(location);
   const isDashboard = location === '/' || location === '';
 
@@ -43,7 +45,7 @@ export default function PageNav({ variant = 'top' }: { variant?: 'top' | 'bottom
             className="page-nav__btn"
             disabled={!seq.prev}
             onClick={() => seq.prev && navigate(seq.prev)}
-            title={seq.prev ? `Previous: ${sequenceLabel(seq.prev)}` : 'No previous page'}
+            title={seq.prev ? `Previous: ${sequenceLabel(seq.prev, user?.role)}` : 'No previous page'}
           >
             <i className="bi bi-chevron-left" /> Prev
           </button>
@@ -52,7 +54,7 @@ export default function PageNav({ variant = 'top' }: { variant?: 'top' | 'bottom
             className="page-nav__btn"
             disabled={!seq.next}
             onClick={() => seq.next && navigate(seq.next)}
-            title={seq.next ? `Next: ${sequenceLabel(seq.next)}` : 'No next page'}
+            title={seq.next ? `Next: ${sequenceLabel(seq.next, user?.role)}` : 'No next page'}
           >
             Next <i className="bi bi-chevron-right" />
           </button>

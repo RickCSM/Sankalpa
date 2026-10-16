@@ -9,6 +9,8 @@ export interface MockUser {
   name: string;
   role: UserRole;
   department?: string;
+  designationId?: number | null;
+  designation?: string | null;
   email: string;
   mobile?: string;
   status: 'Active' | 'Inactive';

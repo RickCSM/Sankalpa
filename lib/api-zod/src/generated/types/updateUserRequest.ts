@@ -9,6 +9,11 @@ import type { UserRole } from "./userRole";
 import type { UserStatus } from "./userStatus";
 
 export interface UpdateUserRequest {
+  /**
+   * System Admin only; omit to preserve, null to clear, active ID to assign
+   * @minimum 1
+   */
+  designationId?: number | null;
   username?: string;
   name?: string;
   role?: UserRole;

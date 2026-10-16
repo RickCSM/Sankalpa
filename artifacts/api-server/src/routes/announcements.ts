@@ -16,6 +16,8 @@ import {
   type WorkflowStatus,
 } from "@workspace/db";
 import { asyncHandler, HttpError } from "../lib/errors";
+import { assertCanCreateSubcomponent } from "../lib/subcomponentCreation";
+import { startProgressSchema } from "../lib/startProgress";
 import { requireAuth, type SessionUser } from "../lib/auth";
 import {
   pickNextCmoReviewerId,
@@ -34,6 +36,8 @@ import {
 } from "../lib/workflow";
 import { announcementAttachmentsTable } from "@workspace/db";
 import { writeAudit, markAudited, auditCtx } from "../lib/audit";
+import { completionRequestSchema } from "../lib/completionRequest";
+import { announcementFacetFilters } from "../lib/announcementFacetFilters";
 
 const router: IRouter = Router();
 
@@ -177,7 +181,7 @@ router.get(
     const baseWhere = await buildVisibilityClause(actor);
 
     // Server-side filters
-    const filters = [];
+    const filters = announcementFacetFilters(req.query);
     const statusParam = typeof req.query.status === "string" ? req.query.status : "";
     if (statusParam) {
       const statuses = statusParam.split(",").map((s) => s.trim()).filter(Boolean) as WorkflowStatus[];
@@ -246,12 +250,16 @@ router.get(
     const SORT_COLUMNS: Record<string, Parameters<typeof asc>[0]> = {
       uniqueId: announcementsTable.uniqueId,
       title: announcementsTable.title,
+      description: announcementsTable.description,
       date: announcementsTable.date,
       department: departmentsTable.name,
       occasion: announcementsTable.occasion,
       location: announcementsTable.location,
       district: announcementsTable.district,
+      block: announcementsTable.block,
       category: categoriesTable.name,
+      otherCategory: announcementsTable.otherCategory,
+      tags: announcementsTable.tags,
       workflowStatus: announcementsTable.workflowStatus,
       createdBy: announcementsTable.createdBy,
       id: announcementsTable.id,
@@ -1250,7 +1258,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const actor = req.session.user!;
     const id = parseId(req.params.id);
-    const { version } = versionOnly.parse(req.body);
+    const { version, comment } = startProgressSchema.parse(req.body);
     await db.transaction(async (tx) => {
       const existing = await loadForUpdate(tx, id, version);
       if (existing.workflowStatus !== "accepted") {
@@ -1266,7 +1274,7 @@ router.post(
         id,
         actor.id,
         "Started Progress",
-        "Department marked the announcement as in progress.",
+        comment,
       );
       await writeAudit(
         tx,
@@ -1302,8 +1310,9 @@ router.post(
   "/announcements/:id/request-completion",
   asyncHandler(async (req, res) => {
     const actor = req.session.user!;
+    if (!["dept_nodal", "admin"].includes(actor.role)) throw new HttpError(403, "Only Department Nodal Officer can request completion");
     const id = parseId(req.params.id);
-    const { version } = versionOnly.parse(req.body);
+    const { version, remarks } = completionRequestSchema.parse(req.body);
     await db.transaction(async (tx) => {
       const existing = await loadForUpdate(tx, id, version);
       const isOwner = actor.role === "admin" || existing.acceptedByDeptNodalId === actor.id;
@@ -1330,7 +1339,7 @@ router.post(
         id,
         actor.id,
         "Completion Requested",
-        "Department Nodal Officer marked as complete, pending reviewer approval.",
+        remarks,
       );
       const reviewers = await deptUsersOf(tx, existing.departmentId, ["dept_reviewer"]);
       await notify(
@@ -1344,7 +1353,7 @@ router.post(
         tx,
         auditCtx(req, "announcement.request_completion", "announcements", id, {
           before: { status: existing.workflowStatus },
-          after: { status: "pending_completion_review" },
+          after: { status: "pending_completion_review", remarks },
         }),
       );
     });
@@ -1711,41 +1720,25 @@ router.post(
   asyncHandler(async (req, res) => {
     const actor = req.session.user!;
     const data = addSubSchema.parse(req.body);
-    const parent = await db
-      .select({
-        id: announcementsTable.id,
-        title: announcementsTable.title,
-        departmentId: announcementsTable.departmentId,
-        workflowStatus: announcementsTable.workflowStatus,
-        acceptedByDeptNodalId: announcementsTable.acceptedByDeptNodalId,
-        createdBy: announcementsTable.createdBy,
-      })
-      .from(announcementsTable)
-      .where(eq(announcementsTable.id, data.announcementId))
-      .limit(1);
-    if (!parent[0]) throw new HttpError(404, "Announcement not found");
-    // Sub-components may only be created once the Department Reviewer has
-    // granted final acceptance (status `accepted` or later in the execution
-    // chain). Before that, neither the CMO creator nor the accepting Dept
-    // Nodal may pre-populate work items — the work plan is an artifact of
-    // the officially-accepted Sankalpa.
-    const allowedParentStatuses: WorkflowStatus[] = [
-      "accepted",
-      "in_progress",
-      "reverted_by_dept_reviewer",
-    ];
-    if (!allowedParentStatuses.includes(parent[0].workflowStatus)) {
-      throw new HttpError(
-        409,
-        "Sub-components can be added only after the Department Reviewer grants final acceptance",
-      );
-    }
-    const isDeptNodalOwner = parent[0].acceptedByDeptNodalId === actor.id;
-    const isAllowed = actor.role === "admin" || isDeptNodalOwner;
-    if (!isAllowed) throw new HttpError(403, "Forbidden");
-
     let inserted: number;
     await db.transaction(async (tx) => {
+      const parent = await tx
+        .select({
+          id: announcementsTable.id,
+          title: announcementsTable.title,
+          departmentId: announcementsTable.departmentId,
+          workflowStatus: announcementsTable.workflowStatus,
+          acceptedByDeptNodalId: announcementsTable.acceptedByDeptNodalId,
+          createdBy: announcementsTable.createdBy,
+        })
+        .from(announcementsTable)
+        .where(eq(announcementsTable.id, data.announcementId))
+        .limit(1)
+        .for("update");
+      if (!parent[0]) throw new HttpError(404, "Announcement not found");
+      // Serialize with Start Progress / hold / review transitions. A status read
+      // outside this transaction could become stale before the child is inserted.
+      assertCanCreateSubcomponent(actor, parent[0]);
       // Validate that the assignee (if provided) belongs to the same
       // department and holds a department-side executor role so that
       // sub-components cannot be steered to arbitrary accounts.
@@ -1910,10 +1903,9 @@ router.patch(
           throw new HttpError(403, "Viewer roles cannot update sub-component status");
         }
         // Sub-component progress is only allowed once the Department Nodal has
-        // officially started progress (status `in_progress`).  The `accepted`
-        // state is the setup window where the Nodal creates and assigns
-        // sub-components; execution may not begin until Start Progress is
-        // triggered.  Work may also continue after a completion revert.
+        // officially started progress (status `in_progress`). Acceptance alone
+        // does not authorize execution. Existing sub-components may also
+        // continue after a completion revert.
         const executionStatuses: WorkflowStatus[] = ["in_progress", "reverted_by_dept_reviewer"];
         if (actor.role !== "admin" && !executionStatuses.includes(parent.workflowStatus)) {
           throw new HttpError(
@@ -2067,9 +2059,8 @@ const addRemarkSchema = z.object({
 
 const VIEWER_ROLES = new Set(["dept_viewer"]);
 // Interim updates (remarks) are only permitted once the Department Nodal has
-// officially started progress.  The `accepted` state is the Nodal's setup
-// window; execution begins — and remarks become meaningful — only after
-// Start Progress is triggered.
+// officially started progress. Acceptance alone does not authorize execution;
+// existing sub-component remarks remain allowed after a completion revert.
 const REMARK_ALLOWED_PARENT_STATUSES: WorkflowStatus[] = [
   "in_progress",
   "reverted_by_dept_reviewer",

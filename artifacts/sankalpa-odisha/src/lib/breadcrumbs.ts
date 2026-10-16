@@ -1,3 +1,5 @@
+import { locationReportPresentation } from './locationReportPresentation';
+
 export interface Crumb {
   label: string;
   path?: string;
@@ -16,6 +18,7 @@ const MASTERS_GROUP = [
   '/masters/blocks',
   '/masters/occasions',
   '/masters/departments',
+  '/masters/designations',
   '/masters/categories',
   '/masters/tags',
 ];
@@ -35,7 +38,7 @@ function titleize(s: string): string {
 
 const HOME: Crumb = { label: 'Dashboard', path: '/' };
 
-export function buildBreadcrumbs(path: string): Crumb[] {
+export function buildBreadcrumbs(path: string, role?: string): Crumb[] {
   if (path === '/' || path === '') return [{ label: 'Dashboard' }];
 
   if (path === '/announcements') return [HOME, { label: 'HCM Announcements' }];
@@ -50,10 +53,10 @@ export function buildBreadcrumbs(path: string): Crumb[] {
   if (path === '/reports/department-wise') return [HOME, { label: 'Reports' }, { label: 'Department Wise' }];
   const deptDetail = path.match(/^\/reports\/department-wise\/(.+)$/);
   if (deptDetail) return [HOME, { label: 'Reports' }, { label: 'Department Wise', path: '/reports/department-wise' }, { label: decodeURIComponent(deptDetail[1]) }];
-  if (REPORT_LABELS[path]) return [HOME, { label: 'Reports' }, { label: REPORT_LABELS[path] }];
+  if (REPORT_LABELS[path]) return [HOME, { label: 'Reports' }, { label: sequenceLabel(path, role)! }];
 
   const masters = path.match(/^\/masters\/([^/]+)$/);
-  if (masters) return [HOME, { label: 'Masters' }, { label: titleize(masters[1]) }];
+  if (masters) return [HOME, { label: 'Masters' }, { label: masters[1] === 'designations' ? 'Designation Master' : titleize(masters[1]) }];
 
   if (path === '/my-actions') return [HOME, { label: 'My Actions' }];
   if (path === '/uoi-notes') return [HOME, { label: 'UOI Notes' }];
@@ -64,10 +67,11 @@ export function buildBreadcrumbs(path: string): Crumb[] {
   return [HOME];
 }
 
-export function sequenceLabel(path: string): string | undefined {
+export function sequenceLabel(path: string, role?: string): string | undefined {
+  if (path === '/reports/location-wise') return locationReportPresentation(role).breadcrumbLabel;
   if (REPORT_LABELS[path]) return REPORT_LABELS[path];
   const m = path.match(/^\/masters\/([^/]+)$/);
-  return m ? titleize(m[1]) : undefined;
+  return m ? (m[1] === 'designations' ? 'Designation Master' : titleize(m[1])) : undefined;
 }
 
 /**

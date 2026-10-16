@@ -10,6 +10,8 @@ import type { SessionUser } from "./sessionUser";
 import type { UserStatus } from "./userStatus";
 
 export type PublicUser = SessionUser & {
+  designationId?: number | null;
+  designation?: string | null;
   mobile: string | null;
   status: UserStatus;
   lastPasswordChange: LastPasswordChange | null;

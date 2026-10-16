@@ -21,6 +21,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { AppStateProvider } from "@/context/AppStateContext";
 import { ConfirmDialogProvider, useConfirmDialog } from "@/components/ConfirmDialog";
 import { NavHistoryProvider } from "@/context/NavHistory";
+import { NavigationLoading } from "@/components/GlobalLoading";
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
@@ -216,6 +217,7 @@ function App() {
           <ConfirmDialogProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <NavHistoryProvider>
+                <NavigationLoading />
                 <BackGuard />
                 <Router />
               </NavHistoryProvider>

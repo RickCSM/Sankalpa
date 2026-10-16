@@ -1,4 +1,5 @@
 export * from "./departments";
+export * from "./designations";
 export * from "./users";
 export * from "./categories";
 export * from "./tags";

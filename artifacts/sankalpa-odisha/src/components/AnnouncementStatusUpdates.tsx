@@ -61,7 +61,8 @@ export default function AnnouncementStatusUpdates({ announcementId, version, use
         <p style={{ fontSize: 13, color: '#666' }}>When no sub-tasks are needed, record progress directly against this announcement.</p>
         <form onSubmit={submit}>
           <label htmlFor="announcement-status-update" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Update remarks <span aria-hidden="true">*</span></label>
-          <textarea id="announcement-status-update" className="form-control" rows={4} maxLength={2000}
+          <textarea id="announcement-status-update" className="form-control" rows={8} maxLength={2000}
+            style={{ display: 'block', width: '100%', minHeight: 180, boxSizing: 'border-box', padding: '12px 14px', border: '1px solid #d1d5db', borderRadius: 6, fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6, resize: 'vertical' }}
             value={comment} disabled={mutation.isPending} aria-required="true"
             aria-invalid={!!error} aria-describedby={error ? 'status-update-error' : undefined}
             placeholder="Describe the current progress or status…"

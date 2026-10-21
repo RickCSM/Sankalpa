@@ -173,7 +173,14 @@ export default function AnnouncementsPage() {
   }, [statusListForServer, filters, currentPage, pageSize, sortConfig]);
 
   const listQuery = useListAnnouncements(queryParams, {
-    query: { queryKey: getListAnnouncementsQueryKey(queryParams) },
+    query: {
+      queryKey: getListAnnouncementsQueryKey(queryParams),
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchInterval: 15_000,
+      refetchIntervalInBackground: false,
+    },
   });
 
   const items = listQuery.data?.announcements ?? [];
@@ -296,7 +303,7 @@ export default function AnnouncementsPage() {
             column.key === 'uniqueId' ? { fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#e87722', whiteSpace: 'nowrap' } :
             column.key === 'title' ? { color: '#1a3a5c', fontWeight: 500 } :
             column.key === 'createdBy' ? { fontSize: 12 } :
-            column.key === 'description' || column.key === 'tags' ? { minWidth: 180, maxWidth: 360, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } : undefined
+            column.key === 'description' || column.key === 'tags' || column.key === 'currentlyWith' ? { minWidth: 180, maxWidth: 360, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } : undefined
           }>
             {column.key === 'workflowStatus' ? (
               <span className={`status-badge ${workflowStatusColors[status]}`}>{workflowStatusLabels[status]}</span>

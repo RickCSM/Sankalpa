@@ -410,6 +410,11 @@ export interface AnnouncementAttachment {
 }
 
 export interface Announcement {
+  /** Current pending approver names and saved designations, separated by newlines for shared queues.
+Derived server-side from current workflow status and assignments, independent of the viewer's role.
+A status or em dash is returned when no approval is pending.
+ */
+  readonly currentlyWith?: string;
   id: number;
   uniqueId: string;
   house?: House | null;

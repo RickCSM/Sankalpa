@@ -14,6 +14,7 @@ import {
   type NotificationType,
 } from "@workspace/db";
 import { HttpError } from "./errors";
+import { currentlyWithSql } from "./currentlyWith";
 
 // Drizzle's transaction type for the postgres-js / node-postgres driver. We
 // keep this loose so all helpers compose with both `db.transaction(tx => …)`
@@ -232,6 +233,7 @@ export interface HydratedAnnouncement {
   category: string | null;
   tags: string[];
   workflowStatus: WorkflowStatus;
+  currentlyWith: string;
   createdBy: number;
   assignedDeptUserId: number | null;
   assignedCmoReviewerId: number | null;
@@ -309,6 +311,7 @@ export function selectHydrated(tx: Tx | typeof db = db) {
       otherCategory: announcementsTable.otherCategory,
       tags: announcementsTable.tags,
       workflowStatus: announcementsTable.workflowStatus,
+      currentlyWith: currentlyWithSql(),
       createdBy: announcementsTable.createdBy,
       assignedDeptUserId: announcementsTable.assignedDeptUserId,
       assignedCmoReviewerId: announcementsTable.assignedCmoReviewerId,

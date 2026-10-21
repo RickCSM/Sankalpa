@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { currentlyWithSql } from "../lib/currentlyWith";
 import { z } from "zod";
 import { eq, and, asc, desc, inArray, sql, type SQL } from "drizzle-orm";
 import { type PgColumn } from "drizzle-orm/pg-core";
@@ -248,6 +249,7 @@ router.get(
 
     // Sorting
     const SORT_COLUMNS: Record<string, Parameters<typeof asc>[0]> = {
+      currentlyWith: currentlyWithSql(),
       uniqueId: announcementsTable.uniqueId,
       title: announcementsTable.title,
       description: announcementsTable.description,

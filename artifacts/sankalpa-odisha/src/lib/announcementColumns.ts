@@ -16,6 +16,7 @@ export const ANNOUNCEMENT_COLUMNS = [
   { key: 'otherCategory', label: 'Other Category', defaultOn: false },
   { key: 'tags', label: 'Relevant Tags', defaultOn: false },
   { key: 'createdBy', label: 'Created By', defaultOn: false },
+  { key: 'currentlyWith', label: 'Currently With', defaultOn: true },
   { key: 'workflowStatus', label: 'Status', defaultOn: true },
 ] as const;
 

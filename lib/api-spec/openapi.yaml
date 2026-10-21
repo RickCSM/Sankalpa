@@ -2029,6 +2029,13 @@ components:
     Announcement:
       type: object
       properties:
+        currentlyWith:
+          type: string
+          readOnly: true
+          description: |
+            Current pending approver names and saved designations, separated by newlines for shared queues.
+            Derived server-side from current workflow status and assignments, independent of the viewer's role.
+            A status or em dash is returned when no approval is pending.
         id: { type: integer }
         uniqueId: { type: string }
         house:

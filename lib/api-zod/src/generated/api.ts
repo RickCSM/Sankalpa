@@ -1119,6 +1119,12 @@ export const ListAnnouncementsQueryParams = zod.object({
 export const ListAnnouncementsResponse = zod.object({
   announcements: zod.array(
     zod.object({
+      currentlyWith: zod
+        .string()
+        .optional()
+        .describe(
+          "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+        ),
       id: zod.number(),
       uniqueId: zod.string(),
       house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1209,6 +1215,12 @@ export const GetAnnouncementParams = zod.object({
 
 export const GetAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1292,6 +1304,12 @@ export const UpdateAnnouncementBody = zod.object({
 
 export const UpdateAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1371,6 +1389,12 @@ export const SubmitAnnouncementBody = zod.object({
 
 export const SubmitAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1445,6 +1469,12 @@ export const ReviewAnnouncementBody = zod.object({
 
 export const ReviewAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1517,6 +1547,12 @@ export const AcceptAnnouncementBody = zod.object({
 
 export const AcceptAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1590,6 +1626,12 @@ export const ReconsiderAnnouncementBody = zod.object({
 
 export const ReconsiderAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1662,6 +1704,12 @@ export const FinalAcceptAnnouncementBody = zod.object({
 
 export const FinalAcceptAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1735,6 +1783,12 @@ export const DropAnnouncementBody = zod.object({
 
 export const DropAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1808,6 +1862,12 @@ export const HoldAnnouncementBody = zod.object({
 
 export const HoldAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1880,6 +1940,12 @@ export const ResumeAnnouncementBody = zod.object({
 
 export const ResumeAnnouncementResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -1966,6 +2032,12 @@ export const StartAnnouncementProgressBody = zod.object({
 
 export const StartAnnouncementProgressResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -2043,6 +2115,12 @@ export const RequestAnnouncementCompletionBody = zod.object({
 
 export const RequestAnnouncementCompletionResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -2117,6 +2195,12 @@ export const ReviewAnnouncementCompletionBody = zod.object({
 
 export const ReviewAnnouncementCompletionResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),
@@ -2191,6 +2275,12 @@ export const ReviewCmoCompletionBody = zod.object({
 
 export const ReviewCmoCompletionResponse = zod.object({
   announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
     id: zod.number(),
     uniqueId: zod.string(),
     house: zod.enum(["R", "L", "A"]).nullish(),

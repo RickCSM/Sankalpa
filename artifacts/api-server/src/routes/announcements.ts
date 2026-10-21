@@ -19,6 +19,7 @@ import {
 import { asyncHandler, HttpError } from "../lib/errors";
 import { assertCanCreateSubcomponent } from "../lib/subcomponentCreation";
 import { startProgressSchema } from "../lib/startProgress";
+import { announcementStatusUpdateSchema, assertCanPostAnnouncementUpdate } from "../lib/announcementStatusUpdate";
 import { requireAuth, type SessionUser } from "../lib/auth";
 import {
   pickNextCmoReviewerId,
@@ -1248,6 +1249,37 @@ router.post(
           after: { status: "accepted" },
         }),
       );
+    });
+    markAudited(res);
+    const fresh = await selectHydrated().where(eq(announcementsTable.id, id)).limit(1);
+    res.json({ announcement: fresh[0] });
+  }),
+);
+
+router.post(
+  "/announcements/:id/status-updates",
+  asyncHandler(async (req, res) => {
+    const actor = req.session.user!;
+    if (actor.role !== "dept_nodal") throw new HttpError(403, "Only Department Nodal can post status updates");
+    const id = parseId(req.params.id);
+    const { version, comment } = announcementStatusUpdateSchema.parse(req.body);
+    await db.transaction(async (tx) => {
+      const existing = await loadForUpdate(tx, id, version);
+      // Check visibility as well as ownership, including a Nodal transferred to
+      // another department after accepting the announcement.
+      const visibility = await buildVisibilityClause(actor);
+      const visible = await tx.select({ id: announcementsTable.id }).from(announcementsTable)
+        .where(and(eq(announcementsTable.id, id), visibility)).limit(1);
+      if (!visible[0]) throw new HttpError(403, "You do not have access to this announcement");
+      const [counts] = await tx.select({ count: sql<number>`count(*)::int` })
+        .from(subComponentsTable).where(eq(subComponentsTable.announcementId, id));
+      assertCanPostAnnouncementUpdate(actor, existing, counts!.count);
+      // Bump the version without changing the workflow status.
+      await applyUpdate(tx, id, existing.version, {});
+      await addComment(tx, id, actor.id, "Status Update", comment);
+      await writeAudit(tx, auditCtx(req, "announcement.status_update", "announcements", id, {
+        after: { status: existing.workflowStatus, comment },
+      }));
     });
     markAudited(res);
     const fresh = await selectHydrated().where(eq(announcementsTable.id, id)).limit(1);

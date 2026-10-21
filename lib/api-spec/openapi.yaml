@@ -1268,6 +1268,26 @@ paths:
         "401": { $ref: "#/components/responses/ErrorResponse" }
         "403": { $ref: "#/components/responses/ErrorResponse" }
         "409": { $ref: "#/components/responses/ErrorResponse" }
+  /announcements/{id}/status-updates:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Announcements]
+      summary: Save an interim update by the accepting Department Nodal when no sub-components exist
+      operationId: createAnnouncementStatusUpdate
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/StatusUpdateRequest" } } }
+      responses:
+        "200": { description: Saved in announcement history without changing workflow status, content: { application/json: { schema: { $ref: "#/components/schemas/AnnouncementResponse" } } } }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "404": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
   /announcements/{id}/start-progress:
     parameters:
       - in: path
@@ -2139,6 +2159,17 @@ components:
       properties:
         version: { type: integer }
       required: [version]
+    StatusUpdateRequest:
+      type: object
+      required: [version, comment]
+      properties:
+        version: { type: integer, minimum: 0 }
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: '\S'
+          description: Required nonblank status update, trimmed before saving.
     StartProgressRequest:
       type: object
       required: [version, comment]

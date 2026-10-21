@@ -76,6 +76,7 @@ import type {
   ReviewRequest,
   SetProfilePhotoRequest,
   StartProgressRequest,
+  StatusUpdateRequest,
   SubComponentListResponse,
   SubComponentRemarkListResponse,
   TagListResponse,
@@ -5807,6 +5808,98 @@ export const useResumeAnnouncement = <
   TContext
 > => {
   return useMutation(getResumeAnnouncementMutationOptions(options));
+};
+
+/**
+ * @summary Save an interim update by the accepting Department Nodal when no sub-components exist
+ */
+export const getCreateAnnouncementStatusUpdateUrl = (id: number) => {
+  return `/api/announcements/${id}/status-updates`;
+};
+
+export const createAnnouncementStatusUpdate = async (
+  id: number,
+  statusUpdateRequest: StatusUpdateRequest,
+  options?: RequestInit,
+): Promise<AnnouncementResponse> => {
+  return customFetch<AnnouncementResponse>(
+    getCreateAnnouncementStatusUpdateUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(statusUpdateRequest),
+    },
+  );
+};
+
+export const getCreateAnnouncementStatusUpdateMutationOptions = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAnnouncementStatusUpdate>>,
+    TError,
+    { id: number; data: BodyType<StatusUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAnnouncementStatusUpdate>>,
+  TError,
+  { id: number; data: BodyType<StatusUpdateRequest> },
+  TContext
+> => {
+  const mutationKey = ["createAnnouncementStatusUpdate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAnnouncementStatusUpdate>>,
+    { id: number; data: BodyType<StatusUpdateRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createAnnouncementStatusUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAnnouncementStatusUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAnnouncementStatusUpdate>>
+>;
+export type CreateAnnouncementStatusUpdateMutationBody =
+  BodyType<StatusUpdateRequest>;
+export type CreateAnnouncementStatusUpdateMutationError =
+  ErrorType<ErrorResponseResponse>;
+
+/**
+ * @summary Save an interim update by the accepting Department Nodal when no sub-components exist
+ */
+export const useCreateAnnouncementStatusUpdate = <
+  TError = ErrorType<ErrorResponseResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAnnouncementStatusUpdate>>,
+    TError,
+    { id: number; data: BodyType<StatusUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAnnouncementStatusUpdate>>,
+  TError,
+  { id: number; data: BodyType<StatusUpdateRequest> },
+  TContext
+> => {
+  return useMutation(getCreateAnnouncementStatusUpdateMutationOptions(options));
 };
 
 /**

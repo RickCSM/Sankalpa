@@ -24,6 +24,7 @@ import SortableHeader from '@/components/SortableHeader';
 import AttachmentsPanel from '@/components/AttachmentsPanel';
 import ClosureRequestDialog from '@/components/ClosureRequestDialog';
 import StartProgressDialog from '@/components/StartProgressDialog';
+import AnnouncementStatusUpdates from '@/components/AnnouncementStatusUpdates';
 import DepartmentCompletionReviewDialog from '@/components/DepartmentCompletionReviewDialog';
 import { useConfirmDialog } from '@/components/ConfirmDialog';
 
@@ -80,11 +81,11 @@ export default function AnnouncementDetailPage() {
   });
   const commentsQuery = useListComments(
     { announcementId, page: 1, pageSize: 200 },
-    { query: { queryKey: getListCommentsQueryKey({ announcementId, page: 1, pageSize: 200 }), enabled: announcementId > 0 } },
+    { query: { queryKey: getListCommentsQueryKey({ announcementId, page: 1, pageSize: 200 }), enabled: announcementId > 0, refetchOnMount: 'always', refetchOnWindowFocus: true, refetchInterval: 30_000 } },
   );
   const subsQuery = useListSubComponents(
     { announcementId, page: 1, pageSize: 200 },
-    { query: { queryKey: getListSubComponentsQueryKey({ announcementId, page: 1, pageSize: 200 }), enabled: announcementId > 0 } },
+    { query: { queryKey: getListSubComponentsQueryKey({ announcementId, page: 1, pageSize: 200 }), enabled: announcementId > 0, refetchOnMount: 'always', refetchOnWindowFocus: true, refetchInterval: 30_000 } },
   );
 
   const announcement: Announcement | null = useMemo(() => {
@@ -1151,6 +1152,12 @@ export default function AnnouncementDetailPage() {
               </div>
             </div>
           )}
+
+          {user?.role === 'dept_nodal' && userInDept && isAcceptingNodal &&
+            ['in_progress', 'reverted_by_dept_reviewer'].includes(announcement.workflowStatus) &&
+            subsQuery.isSuccess && subsQuery.data.total === 0 && (
+              <AnnouncementStatusUpdates announcementId={announcement.id} version={announcement.version!} userId={user.id} />
+            )}
 
           <div className="card">
             <div className="card-body">

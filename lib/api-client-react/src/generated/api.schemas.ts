@@ -486,6 +486,18 @@ export interface VersionRequest {
   version: number;
 }
 
+export interface StatusUpdateRequest {
+  /** @minimum 0 */
+  version: number;
+  /**
+   * Required nonblank status update, trimmed before saving.
+   * @minLength 1
+   * @maxLength 2000
+   * @pattern \S
+   */
+  comment: string;
+}
+
 export interface StartProgressRequest {
   /** @minimum 0 */
   version: number;

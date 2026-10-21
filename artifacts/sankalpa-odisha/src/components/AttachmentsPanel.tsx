@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useId } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getFriendlyErrorMessage } from '@/lib/errorMessages';
 import {
@@ -151,6 +151,7 @@ function AttachmentModal({ att, onClose }: { att: AttachmentRecord; onClose: () 
 }
 
 export default function AttachmentsPanel({ announcementId, canUpload, canDeleteRow, onUploadingChange }: Props) {
+  const uploadInputId = useId();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -270,12 +271,12 @@ export default function AttachmentsPanel({ announcementId, canUpload, canDeleteR
               type="file"
               accept={ALLOWED_EXTENSIONS}
               onChange={handleFileChange}
-              id="att-upload"
+              id={uploadInputId}
               style={{ display: 'none' }}
               disabled={uploading}
             />
             <label
-              htmlFor="att-upload"
+              htmlFor={uploadInputId}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 padding: '6px 14px',

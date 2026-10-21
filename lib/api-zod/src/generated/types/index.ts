@@ -98,6 +98,7 @@ export * from "./reviewRequestAction";
 export * from "./sessionUser";
 export * from "./setProfilePhotoRequest";
 export * from "./startProgressRequest";
+export * from "./statusUpdateRequest";
 export * from "./subComponent";
 export * from "./subComponentListResponse";
 export * from "./subComponentRemark";

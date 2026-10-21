@@ -2006,6 +2006,98 @@ export const ResumeAnnouncementResponse = zod.object({
 });
 
 /**
+ * @summary Save an interim update by the accepting Department Nodal when no sub-components exist
+ */
+export const CreateAnnouncementStatusUpdateParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const createAnnouncementStatusUpdateBodyVersionMin = 0;
+
+export const createAnnouncementStatusUpdateBodyCommentMax = 2000;
+
+export const createAnnouncementStatusUpdateBodyCommentRegExp = new RegExp(
+  "\\S",
+);
+
+export const CreateAnnouncementStatusUpdateBody = zod.object({
+  version: zod.number().min(createAnnouncementStatusUpdateBodyVersionMin),
+  comment: zod
+    .string()
+    .min(1)
+    .max(createAnnouncementStatusUpdateBodyCommentMax)
+    .regex(createAnnouncementStatusUpdateBodyCommentRegExp)
+    .describe("Required nonblank status update, trimmed before saving."),
+});
+
+export const CreateAnnouncementStatusUpdateResponse = zod.object({
+  announcement: zod.object({
+    currentlyWith: zod
+      .string()
+      .optional()
+      .describe(
+        "Current pending approver names and saved designations, separated by newlines for shared queues.\nDerived server-side from current workflow status and assignments, independent of the viewer's role.\nA status or em dash is returned when no approval is pending.\n",
+      ),
+    id: zod.number(),
+    uniqueId: zod.string(),
+    house: zod.enum(["R", "L", "A"]).nullish(),
+    constituencyNumber: zod.number().nullish(),
+    title: zod.string(),
+    date: zod.string(),
+    description: zod.string(),
+    department: zod.string().nullable(),
+    occasion: zod.string(),
+    location: zod.string(),
+    district: zod.string().nullish(),
+    block: zod.string().nullish(),
+    category: zod.string().nullish(),
+    otherCategory: zod.string().nullish(),
+    tags: zod.array(zod.string()),
+    workflowStatus: zod.enum([
+      "draft",
+      "pending_cmo_review",
+      "reverted_by_cmo",
+      "pending_cmo_reconsideration",
+      "published",
+      "pending_dept_acceptance",
+      "accepted",
+      "in_progress",
+      "pending_completion_review",
+      "reverted_by_dept_reviewer",
+      "pending_cmo_completion_review",
+      "completed",
+      "dropped",
+      "on_hold",
+    ]),
+    createdBy: zod.number(),
+    assignedDeptUserId: zod.number().nullish(),
+    assignedCmoReviewerId: zod.number().nullish(),
+    acceptedByDeptNodalId: zod.number().nullish(),
+    reconsiderationRequested: zod.boolean(),
+    statusBeforeHold: zod
+      .enum([
+        "draft",
+        "pending_cmo_review",
+        "reverted_by_cmo",
+        "pending_cmo_reconsideration",
+        "published",
+        "pending_dept_acceptance",
+        "accepted",
+        "in_progress",
+        "pending_completion_review",
+        "reverted_by_dept_reviewer",
+        "pending_cmo_completion_review",
+        "completed",
+        "dropped",
+        "on_hold",
+      ])
+      .nullish(),
+    version: zod.number(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
  * @summary Start progress on an accepted announcement with a mandatory comment
  */
 export const StartAnnouncementProgressParams = zod.object({
